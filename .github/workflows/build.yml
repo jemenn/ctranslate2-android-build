@@ -31,6 +31,12 @@ jobs:
         git checkout v2.24.0
         git submodule update --init --recursive
 
+    - name: Patch for Android
+      run: |
+        cd CTranslate2
+        sed -i '89s/.*/      #ifndef __ANDROID__\n      const int status = pthread_setaffinity_np(thread.native_handle(), sizeof (cpu_set_t), \&cpuset);\n      #else\n      const int status = 0;\n      #endif/' src/thread_pool.cc
+        echo "=== 补丁结果 ===" && sed -n '85,100p' src/thread_pool.cc
+
     - name: Build arm64-v8a
       run: |
         cd CTranslate2
@@ -48,7 +54,7 @@ jobs:
           -DWITH_ACCELERATE=OFF \
           -DWITH_OPENBLAS=OFF \
           -DOPENMP_RUNTIME=NONE \
-          -DCMAKE_CXX_FLAGS="-Wno-deprecated" \
+          -DCMAKE_CXX_FLAGS="-Wno-deprecated -Wno-error" \
           -GNinja
         ninja -j4
 
@@ -69,7 +75,7 @@ jobs:
           -DWITH_ACCELERATE=OFF \
           -DWITH_OPENBLAS=OFF \
           -DOPENMP_RUNTIME=NONE \
-          -DCMAKE_CXX_FLAGS="-Wno-deprecated" \
+          -DCMAKE_CXX_FLAGS="-Wno-deprecated -Wno-error" \
           -GNinja
         ninja -j4
 
