@@ -31,127 +31,20 @@ jobs:
         git checkout v2.24.0
         git submodule update --init --recursive
 
-    - name: Patch for Android
+    - name: Print key source files
       run: |
         cd CTranslate2
-
-        # 补丁1：thread_pool.cc - pthread_setaffinity_np
-        sed -i 's/const int status = pthread_setaffinity_np(thread.native_handle(), sizeof (cpu_set_t), \&cpuset);/#ifndef __ANDROID__\n      const int status = pthread_setaffinity_np(thread.native_handle(), sizeof (cpu_set_t), \&cpuset);\n      #else\n      const int status = 0;\n      #endif/' \
-          src/thread_pool.cc
-
-        # 补丁2：primitives.cc - 定义 CPU_ISA 宏（核心修复）
-        # CPU_ISA_DISPATCH 宏里有 constexpr cpu::CpuIsa ISA = CPU_ISA;
-        # Android 编译时 CPU_ISA 没有被 cmake 设置，导致 ISA 未定义
-        # 直接在文件头定义 CPU_ISA = NEON（Android ARM 标配）
-        cat > /tmp/android_patch.h << 'HEADER'
-        // === Android CPU ISA Patch ===
-        #ifdef __ANDROID__
-        #include "ctranslate2/types.h"
-        #ifndef CT2_WITH_NEON
-        #define CT2_WITH_NEON
-        #endif
-        #ifndef CPU_ISA
-        #define CPU_ISA ctranslate2::cpu::CpuIsa::NEON
-        #endif
-        #endif
-        // === End Patch ===
-        HEADER
-        cat /tmp/android_patch.h src/cpu/primitives.cc > /tmp/primitives_patched.cc
-        mv /tmp/primitives_patched.cc src/cpu/primitives.cc
-
-        # 补丁3：types.h - 用 sed 确保 NEON 在枚举里（无条件）
-        # 原来被 #ifdef CT2_WITH_NEON 保护，现在直接展开
-        python3 - << 'PYEOF'
-        import re
-        with open('include/ctranslate2/types.h') as f:
-            c = f.read()
-        # 移除 #ifdef CT2_WITH_NEON ... #endif 保护，让 NEON 无条件存在
-        c = re.sub(
-            r'#\s*ifdef\s+CT2_WITH_NEON\s*\n(\s*NEON\s*,\s*)\n\s*#\s*endif',
-            r'\1  // always available on ARM',
-            c
-        )
-        with open('include/ctranslate2/types.h', 'w') as f:
-            f.write(c)
-        # 验证
-        if 'NEON' in c and '#ifdef CT2_WITH_NEON' not in c.split('NEON')[0].split('\n')[-1]:
-            print('✓ types.h NEON ok')
-        else:
-            # 备用：用更宽松的替换
-            c = c.replace('#ifdef CT2_WITH_NEON', '// #ifdef CT2_WITH_NEON (disabled for Android)')
-            c = c.replace('#endif  // CT2_WITH_NEON', '// #endif CT2_WITH_NEON')
-            # 如果以上不够就强制插入
-            if 'enum class CpuIsa' in c and 'NEON' not in c:
-                c = c.replace('GENERIC,', 'GENERIC,\n    NEON,')
-            with open('include/ctranslate2/types.h', 'w') as f:
-                f.write(c)
-            print('✓ types.h patched (fallback)')
-        PYEOF
-
-        # 验证所有补丁
-        echo "=== 验证 ==="
-        echo "--- primitives.cc 前10行 ---"
-        head -12 src/cpu/primitives.cc
-        echo "--- types.h NEON 检查 ---"
-        grep -n "NEON\|CpuIsa" include/ctranslate2/types.h | head -10
-
-    - name: Build arm64-v8a
-      run: |
-        cd CTranslate2
-        mkdir build-arm64 && cd build-arm64
-        cmake .. \
-          -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
-          -DANDROID_ABI=arm64-v8a \
-          -DANDROID_PLATFORM=android-26 \
-          -DCMAKE_BUILD_TYPE=Release \
-          -DBUILD_SHARED_LIBS=ON \
-          -DWITH_TESTS=OFF \
-          -DWITH_BENCHMARKS=OFF \
-          -DWITH_MKL=OFF \
-          -DWITH_DNNL=OFF \
-          -DWITH_ACCELERATE=OFF \
-          -DWITH_OPENBLAS=OFF \
-          -DOPENMP_RUNTIME=NONE \
-          -DWITH_NEON=ON \
-          -DCMAKE_CXX_STANDARD=17 \
-          -DCMAKE_CXX_FLAGS="-DCT2_WITH_NEON -Wno-deprecated -Wno-error -Wno-unused" \
-          -GNinja
-        ninja -j4
-
-    - name: Build armeabi-v7a
-      run: |
-        cd CTranslate2
-        mkdir build-v7 && cd build-v7
-        cmake .. \
-          -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
-          -DANDROID_ABI=armeabi-v7a \
-          -DANDROID_PLATFORM=android-26 \
-          -DCMAKE_BUILD_TYPE=Release \
-          -DBUILD_SHARED_LIBS=ON \
-          -DWITH_TESTS=OFF \
-          -DWITH_BENCHMARKS=OFF \
-          -DWITH_MKL=OFF \
-          -DWITH_DNNL=OFF \
-          -DWITH_ACCELERATE=OFF \
-          -DWITH_OPENBLAS=OFF \
-          -DOPENMP_RUNTIME=NONE \
-          -DWITH_NEON=ON \
-          -DANDROID_ARM_NEON=TRUE \
-          -DCMAKE_CXX_STANDARD=17 \
-          -DCMAKE_CXX_FLAGS="-DCT2_WITH_NEON -Wno-deprecated -Wno-error -Wno-unused" \
-          -GNinja
-        ninja -j4
-
-    - name: Package
-      run: |
-        mkdir -p output/arm64-v8a output/armeabi-v7a
-        cp CTranslate2/build-arm64/libctranslate2.so output/arm64-v8a/
-        cp CTranslate2/build-v7/libctranslate2.so   output/armeabi-v7a/
-        ls -lh output/arm64-v8a/ output/armeabi-v7a/
-
-    - name: Upload
-      uses: actions/upload-artifact@v4
-      with:
-        name: ctranslate2-android-libs
-        path: output/
-        retention-days: 30
+        echo "========== src/cpu/cpu_isa.h =========="
+        cat src/cpu/cpu_isa.h
+        echo ""
+        echo "========== include/ctranslate2/types.h (CpuIsa enum) =========="
+        grep -n "CpuIsa\|NEON\|GENERIC\|CT2_WITH" include/ctranslate2/types.h
+        echo ""
+        echo "========== src/cpu/primitives.cc (first 30 lines) =========="
+        head -30 src/cpu/primitives.cc
+        echo ""
+        echo "========== CMakeLists.txt (CPU dispatch section) =========="
+        grep -n "CPU_DISPATCH\|CT2_WITH_NEON\|set_source_files\|NEON\|primitives" CMakeLists.txt | head -40
+        echo ""
+        echo "========== src/cpu/CMakeLists.txt =========="
+        cat src/cpu/CMakeLists.txt 2>/dev/null || echo "not found"
