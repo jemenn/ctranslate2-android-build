@@ -31,20 +31,71 @@ jobs:
         git checkout v2.24.0
         git submodule update --init --recursive
 
-    - name: Print key source files
+    - name: Patch for Android
       run: |
         cd CTranslate2
-        echo "========== src/cpu/cpu_isa.h =========="
-        cat src/cpu/cpu_isa.h
-        echo ""
-        echo "========== include/ctranslate2/types.h (CpuIsa enum) =========="
-        grep -n "CpuIsa\|NEON\|GENERIC\|CT2_WITH" include/ctranslate2/types.h
-        echo ""
-        echo "========== src/cpu/primitives.cc (first 30 lines) =========="
-        head -30 src/cpu/primitives.cc
-        echo ""
-        echo "========== CMakeLists.txt (CPU dispatch section) =========="
-        grep -n "CPU_DISPATCH\|CT2_WITH_NEON\|set_source_files\|NEON\|primitives" CMakeLists.txt | head -40
-        echo ""
-        echo "========== src/cpu/CMakeLists.txt =========="
-        cat src/cpu/CMakeLists.txt 2>/dev/null || echo "not found"
+        # 唯一补丁：pthread_setaffinity_np
+        sed -i 's/const int status = pthread_setaffinity_np(thread.native_handle(), sizeof (cpu_set_t), \&cpuset);/#ifndef __ANDROID__\n      const int status = pthread_setaffinity_np(thread.native_handle(), sizeof (cpu_set_t), \&cpuset);\n      #else\n      const int status = 0;\n      #endif/' src/thread_pool.cc
+        echo "✓ patch done"
+        grep -A2 "ANDROID" src/thread_pool.cc | head -6
+
+    - name: Build arm64-v8a
+      run: |
+        cd CTranslate2
+        mkdir build-arm64 && cd build-arm64
+        cmake .. \
+          -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
+          -DANDROID_ABI=arm64-v8a \
+          -DANDROID_PLATFORM=android-26 \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DBUILD_SHARED_LIBS=ON \
+          -DWITH_TESTS=OFF \
+          -DWITH_BENCHMARKS=OFF \
+          -DWITH_MKL=OFF \
+          -DWITH_DNNL=OFF \
+          -DWITH_ACCELERATE=OFF \
+          -DWITH_OPENBLAS=OFF \
+          -DOPENMP_RUNTIME=NONE \
+          -DWITH_NEON=ON \
+          -DCMAKE_CXX_STANDARD=17 \
+          -DCMAKE_CXX_FLAGS="-DCT2_ARM64_BUILD -Wno-deprecated -Wno-error -Wno-unused" \
+          -GNinja
+        ninja -j4
+
+    - name: Build armeabi-v7a
+      run: |
+        cd CTranslate2
+        mkdir build-v7 && cd build-v7
+        cmake .. \
+          -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
+          -DANDROID_ABI=armeabi-v7a \
+          -DANDROID_PLATFORM=android-26 \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DBUILD_SHARED_LIBS=ON \
+          -DWITH_TESTS=OFF \
+          -DWITH_BENCHMARKS=OFF \
+          -DWITH_MKL=OFF \
+          -DWITH_DNNL=OFF \
+          -DWITH_ACCELERATE=OFF \
+          -DWITH_OPENBLAS=OFF \
+          -DOPENMP_RUNTIME=NONE \
+          -DWITH_NEON=ON \
+          -DANDROID_ARM_NEON=TRUE \
+          -DCMAKE_CXX_STANDARD=17 \
+          -DCMAKE_CXX_FLAGS="-DCT2_ARM64_BUILD -Wno-deprecated -Wno-error -Wno-unused" \
+          -GNinja
+        ninja -j4
+
+    - name: Package
+      run: |
+        mkdir -p output/arm64-v8a output/armeabi-v7a
+        cp CTranslate2/build-arm64/libctranslate2.so output/arm64-v8a/
+        cp CTranslate2/build-v7/libctranslate2.so   output/armeabi-v7a/
+        echo "=== 成功 ===" && ls -lh output/arm64-v8a/ output/armeabi-v7a/
+
+    - name: Upload
+      uses: actions/upload-artifact@v4
+      with:
+        name: ctranslate2-android-libs
+        path: output/
+        retention-days: 30
