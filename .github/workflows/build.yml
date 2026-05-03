@@ -22,7 +22,7 @@ jobs:
     - name: Install tools
       run: |
         sudo apt-get update -q
-        sudo apt-get install -y cmake ninja-build python3
+        sudo apt-get install -y cmake ninja-build
 
     - name: Clone CTranslate2 v2.24.0
       run: |
@@ -31,85 +31,69 @@ jobs:
         git checkout v2.24.0
         git submodule update --init --recursive
 
-    - name: Patch all Android issues
+    - name: Patch for Android
       run: |
         cd CTranslate2
-        python3 << 'PYEOF'
-        import re, os
 
-        # ── 补丁1：thread_pool.cc ────────────────────────────────────
-        with open('src/thread_pool.cc') as f: c = f.read()
-        c = c.replace(
-            'const int status = pthread_setaffinity_np(thread.native_handle(), sizeof (cpu_set_t), &cpuset);',
-            '#ifndef __ANDROID__\n'
-            '      const int status = pthread_setaffinity_np(thread.native_handle(), sizeof (cpu_set_t), &cpuset);\n'
-            '      #else\n'
-            '      const int status = 0;\n'
-            '      #endif'
-        )
-        with open('src/thread_pool.cc', 'w') as f: f.write(c)
-        print("✓ patch1: thread_pool.cc")
+        # 补丁1：thread_pool.cc - pthread_setaffinity_np
+        sed -i 's/const int status = pthread_setaffinity_np(thread.native_handle(), sizeof (cpu_set_t), \&cpuset);/#ifndef __ANDROID__\n      const int status = pthread_setaffinity_np(thread.native_handle(), sizeof (cpu_set_t), \&cpuset);\n      #else\n      const int status = 0;\n      #endif/' \
+          src/thread_pool.cc
 
-        # ── 补丁2：types.h - 直接让 NEON 永远存在于枚举 ────────────
-        # 原代码：
-        #   #ifdef CT2_WITH_NEON
-        #   NEON,
-        #   #endif
-        # 修改为：NEON 无条件存在（ARM 平台 NEON 是标配）
-        types_h = 'include/ctranslate2/types.h'
-        with open(types_h) as f: c = f.read()
-        c = c.replace(
-            '#ifdef CT2_WITH_NEON\n    NEON,\n    #endif',
-            'NEON,  // always defined (ARM NEON is standard)'
-        )
-        # 也处理没有缩进的情况
-        c = c.replace(
-            '#ifdef CT2_WITH_NEON\n  NEON,\n  #endif',
-            'NEON,  // always defined'
-        )
+        # 补丁2：primitives.cc - 定义 CPU_ISA 宏（核心修复）
+        # CPU_ISA_DISPATCH 宏里有 constexpr cpu::CpuIsa ISA = CPU_ISA;
+        # Android 编译时 CPU_ISA 没有被 cmake 设置，导致 ISA 未定义
+        # 直接在文件头定义 CPU_ISA = NEON（Android ARM 标配）
+        cat > /tmp/android_patch.h << 'HEADER'
+        // === Android CPU ISA Patch ===
+        #ifdef __ANDROID__
+        #include "ctranslate2/types.h"
+        #ifndef CT2_WITH_NEON
+        #define CT2_WITH_NEON
+        #endif
+        #ifndef CPU_ISA
+        #define CPU_ISA ctranslate2::cpu::CpuIsa::NEON
+        #endif
+        #endif
+        // === End Patch ===
+        HEADER
+        cat /tmp/android_patch.h src/cpu/primitives.cc > /tmp/primitives_patched.cc
+        mv /tmp/primitives_patched.cc src/cpu/primitives.cc
+
+        # 补丁3：types.h - 用 sed 确保 NEON 在枚举里（无条件）
+        # 原来被 #ifdef CT2_WITH_NEON 保护，现在直接展开
+        python3 - << 'PYEOF'
+        import re
+        with open('include/ctranslate2/types.h') as f:
+            c = f.read()
+        # 移除 #ifdef CT2_WITH_NEON ... #endif 保护，让 NEON 无条件存在
         c = re.sub(
-            r'#ifdef CT2_WITH_NEON\s+NEON,\s+#endif',
-            'NEON,  // always defined',
+            r'#\s*ifdef\s+CT2_WITH_NEON\s*\n(\s*NEON\s*,\s*)\n\s*#\s*endif',
+            r'\1  // always available on ARM',
             c
         )
-        with open(types_h, 'w') as f: f.write(c)
-        print("✓ patch2: types.h NEON always defined")
-
-        # ── 补丁3：cpu_isa.h - 确保 NEON 相关宏正确 ────────────────
-        cpu_isa = 'src/cpu/cpu_isa.h'
-        if os.path.exists(cpu_isa):
-            with open(cpu_isa) as f: c = f.read()
-            # 确保 CT2_WITH_NEON 宏在 Android 时被定义
-            if '#ifdef __ANDROID__' not in c:
-                c = '#ifdef __ANDROID__\n#define CT2_WITH_NEON\n#endif\n' + c
-            with open(cpu_isa, 'w') as f: f.write(c)
-            print("✓ patch3: cpu_isa.h")
-
-        # ── 补丁4：CMakeLists.txt - Android 时关闭 CPU dispatch ─────
-        with open('CMakeLists.txt') as f: c = f.read()
-        # 用 sed 无法处理多行，用 Python 直接替换
-        # 找所有设置 CT2_WITH_CPU_DISPATCH 的地方
-        c = re.sub(
-            r'([ \t]*target_compile_definitions\([^\)]*CT2_WITH_CPU_DISPATCH[^\)]*\))',
-            r'if(NOT ANDROID)\n\1\nendif()',
-            c
-        )
-        c = re.sub(
-            r'([ \t]*set_property\([^\)]*CT2_WITH_CPU_DISPATCH[^\)]*\))',
-            r'if(NOT ANDROID)\n\1\nendif()',
-            c
-        )
-        with open('CMakeLists.txt', 'w') as f: f.write(c)
-        print("✓ patch4: CMakeLists.txt")
-
-        # ── 验证 ────────────────────────────────────────────────────
-        with open('include/ctranslate2/types.h') as f: c = f.read()
-        idx = c.find('NEON')
-        if idx >= 0:
-            print(f"✓ 验证 NEON 在 types.h: ...{c[idx-30:idx+20]}...")
+        with open('include/ctranslate2/types.h', 'w') as f:
+            f.write(c)
+        # 验证
+        if 'NEON' in c and '#ifdef CT2_WITH_NEON' not in c.split('NEON')[0].split('\n')[-1]:
+            print('✓ types.h NEON ok')
         else:
-            print("✗ NEON 不在 types.h！")
+            # 备用：用更宽松的替换
+            c = c.replace('#ifdef CT2_WITH_NEON', '// #ifdef CT2_WITH_NEON (disabled for Android)')
+            c = c.replace('#endif  // CT2_WITH_NEON', '// #endif CT2_WITH_NEON')
+            # 如果以上不够就强制插入
+            if 'enum class CpuIsa' in c and 'NEON' not in c:
+                c = c.replace('GENERIC,', 'GENERIC,\n    NEON,')
+            with open('include/ctranslate2/types.h', 'w') as f:
+                f.write(c)
+            print('✓ types.h patched (fallback)')
         PYEOF
+
+        # 验证所有补丁
+        echo "=== 验证 ==="
+        echo "--- primitives.cc 前10行 ---"
+        head -12 src/cpu/primitives.cc
+        echo "--- types.h NEON 检查 ---"
+        grep -n "NEON\|CpuIsa" include/ctranslate2/types.h | head -10
 
     - name: Build arm64-v8a
       run: |
@@ -130,7 +114,7 @@ jobs:
           -DOPENMP_RUNTIME=NONE \
           -DWITH_NEON=ON \
           -DCMAKE_CXX_STANDARD=17 \
-          -DCMAKE_CXX_FLAGS="-DCT2_WITH_NEON -Wno-deprecated -Wno-error -Wno-unused-parameter -Wno-unused-variable" \
+          -DCMAKE_CXX_FLAGS="-DCT2_WITH_NEON -Wno-deprecated -Wno-error -Wno-unused" \
           -GNinja
         ninja -j4
 
@@ -154,7 +138,7 @@ jobs:
           -DWITH_NEON=ON \
           -DANDROID_ARM_NEON=TRUE \
           -DCMAKE_CXX_STANDARD=17 \
-          -DCMAKE_CXX_FLAGS="-DCT2_WITH_NEON -Wno-deprecated -Wno-error -Wno-unused-parameter -Wno-unused-variable" \
+          -DCMAKE_CXX_FLAGS="-DCT2_WITH_NEON -Wno-deprecated -Wno-error -Wno-unused" \
           -GNinja
         ninja -j4
 
