@@ -13,16 +13,16 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
-    - name: Setup Android NDK r23c
+    - name: Setup NDK r25c
       uses: nttld/setup-ndk@v1
       with:
-        ndk-version: r23c
+        ndk-version: r25c
         add-to-path: true
 
-    - name: Install dependencies
+    - name: Install tools
       run: |
-        sudo apt-get update
-        sudo apt-get install -y cmake ninja-build
+        sudo apt-get update -q
+        sudo apt-get install -y cmake ninja-build python3
 
     - name: Clone CTranslate2 v2.24.0
       run: |
@@ -31,29 +31,51 @@ jobs:
         git checkout v2.24.0
         git submodule update --init --recursive
 
-    - name: Patch for Android
+    - name: Auto-patch all Android incompatibilities
       run: |
         cd CTranslate2
+        python3 << 'PYEOF'
+        import re, os, glob
 
-        # 补丁1：修复 pthread_setaffinity_np
-        sed -i '89s/.*/      #ifndef __ANDROID__\n      const int status = pthread_setaffinity_np(thread.native_handle(), sizeof (cpu_set_t), \&cpuset);\n      #else\n      const int status = 0;\n      #endif/' src/thread_pool.cc
+        def patch_file(path, patches):
+            with open(path) as f:
+                c = f.read()
+            orig = c
+            for old, new in patches:
+                c = c.replace(old, new)
+            if c != orig:
+                with open(path, 'w') as f:
+                    f.write(c)
+                print(f"  ✓ patched {path}")
+            else:
+                print(f"  - unchanged {path}")
 
-        # 补丁2：在 CMakeLists.txt 里强制关闭 CPU dispatch for Android
-        # 找到设置 CT2_WITH_CPU_DISPATCH 的行，加 Android 判断
-        sed -i 's/target_compile_definitions(ctranslate2 PRIVATE CT2_WITH_CPU_DISPATCH)/if(NOT ANDROID)\n  target_compile_definitions(ctranslate2 PRIVATE CT2_WITH_CPU_DISPATCH)\nendif()/' CMakeLists.txt
+        # 补丁1：thread_pool.cc - pthread_setaffinity_np
+        patch_file('src/thread_pool.cc', [(
+            'const int status = pthread_setaffinity_np(thread.native_handle(), sizeof (cpu_set_t), &cpuset);',
+            '#ifndef __ANDROID__\n      const int status = pthread_setaffinity_np(thread.native_handle(), sizeof (cpu_set_t), &cpuset);\n      #else\n      const int status = 0;\n      #endif'
+        )])
 
-        # 补丁3：直接注释掉 primitives.cc 里的 ISA dispatch 宏，改为直接调用
-        # 用最简单的方式：在 primitives.cc 里取消 CPU dispatch 宏
-        sed -i 's/#define CPU_ISA_DISPATCH(\(.*\))/#ifdef __ANDROID__\n#define CPU_ISA_DISPATCH(x) x\n#else\n#define CPU_ISA_DISPATCH(\1)\n#endif/' src/cpu/cpu_info.h 2>/dev/null || true
+        # 补丁2：primitives.cc - 文件头加 undef 保护（备用）
+        path2 = 'src/cpu/primitives.cc'
+        with open(path2) as f: c = f.read()
+        guard = '// Android compatibility guard\n#ifdef __ANDROID__\n#ifndef CT2_WITH_NEON\n#define CT2_WITH_NEON\n#endif\n#endif\n'
+        if '// Android compatibility guard' not in c:
+            with open(path2, 'w') as f:
+                f.write(guard + c)
+            print(f"  ✓ patched {path2}")
 
-        # 补丁4：直接在源文件头部取消 CT2_WITH_CPU_DISPATCH
-        sed -i '1s/^/#ifdef __ANDROID__\n#undef CT2_WITH_CPU_DISPATCH\n#endif\n/' src/cpu/primitives.cc
+        # 补丁3：扫描所有 .cc/.h 找 Android 不支持的 API
+        bad_apis = ['pthread_setaffinity_np', 'pthread_getaffinity_np']
+        for fpath in glob.glob('src/**/*.cc', recursive=True) + glob.glob('src/**/*.h', recursive=True):
+            with open(fpath) as f:
+                c = f.read()
+            for api in bad_apis:
+                if api in c and '#ifndef __ANDROID__' not in c:
+                    print(f"  ⚠️  {fpath} 含有 {api}，需要额外 patch")
 
-        echo "=== 补丁验证 ==="
-        echo "--- thread_pool.cc ---"
-        sed -n '86,96p' src/thread_pool.cc
-        echo "--- primitives.cc 前5行 ---"
-        head -6 src/cpu/primitives.cc
+        print("补丁完成")
+        PYEOF
 
     - name: Build arm64-v8a
       run: |
@@ -72,9 +94,15 @@ jobs:
           -DWITH_ACCELERATE=OFF \
           -DWITH_OPENBLAS=OFF \
           -DOPENMP_RUNTIME=NONE \
-          -DCMAKE_CXX_FLAGS="-Wno-deprecated -Wno-error -Wno-unused-parameter" \
+          -DWITH_NEON=ON \
+          -DCMAKE_CXX_FLAGS="-Wno-deprecated -Wno-error -Wno-unused-parameter -Wno-unused-variable" \
+          -DCMAKE_CXX_STANDARD=17 \
           -GNinja
-        ninja -j4
+        ninja -j4 2>&1 | tee build.log
+        if grep -q "error:" build.log; then
+          echo "=== 编译错误 ===" && grep "error:" build.log | head -20
+          exit 1
+        fi
 
     - name: Build armeabi-v7a
       run: |
@@ -93,7 +121,10 @@ jobs:
           -DWITH_ACCELERATE=OFF \
           -DWITH_OPENBLAS=OFF \
           -DOPENMP_RUNTIME=NONE \
-          -DCMAKE_CXX_FLAGS="-Wno-deprecated -Wno-error -Wno-unused-parameter" \
+          -DWITH_NEON=ON \
+          -DANDROID_ARM_NEON=TRUE \
+          -DCMAKE_CXX_FLAGS="-Wno-deprecated -Wno-error -Wno-unused-parameter -Wno-unused-variable" \
+          -DCMAKE_CXX_STANDARD=17 \
           -GNinja
         ninja -j4
 
@@ -102,9 +133,7 @@ jobs:
         mkdir -p output/arm64-v8a output/armeabi-v7a
         cp CTranslate2/build-arm64/libctranslate2.so output/arm64-v8a/
         cp CTranslate2/build-v7/libctranslate2.so   output/armeabi-v7a/
-        echo "=== 编译结果 ==="
-        ls -lh output/arm64-v8a/
-        ls -lh output/armeabi-v7a/
+        echo "=== 成功 ===" && ls -lh output/arm64-v8a/ output/armeabi-v7a/
 
     - name: Upload
       uses: actions/upload-artifact@v4
