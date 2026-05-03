@@ -34,45 +34,8 @@ jobs:
     - name: Patch for Android
       run: |
         cd CTranslate2
-
-        # 补丁1：thread_pool.cc
         sed -i 's/const int status = pthread_setaffinity_np(thread.native_handle(), sizeof (cpu_set_t), \&cpuset);/#ifndef __ANDROID__\n      const int status = pthread_setaffinity_np(thread.native_handle(), sizeof (cpu_set_t), \&cpuset);\n      #else\n      const int status = 0;\n      #endif/' src/thread_pool.cc
-
-        # 补丁2+3：用 Python 文件方式（避免 heredoc 缩进问题）
-        cat > /tmp/patch.py << 'EOF'
-import re
-
-with open('CMakeLists.txt') as f:
-    content = f.read()
-
-# 补丁2：在 project() 后插入全局宏
-lines = content.splitlines(keepends=True)
-insert_idx = -1
-for i, line in enumerate(lines):
-    if line.strip().startswith('project('):
-        insert_idx = i + 1
-        break
-if insert_idx >= 0:
-    lines.insert(insert_idx, '\nadd_compile_definitions(CT2_ARM64_BUILD)\n')
-    content = ''.join(lines)
-    print('patch2 ok: CT2_ARM64_BUILD inserted at line', insert_idx+1)
-
-# 补丁3：找 kernels_neon.cc 位置
-if 'kernels_neon' in content:
-    idx = content.find('kernels_neon')
-    line_no = content[:idx].count('\n') + 1
-    print('kernels_neon found at line', line_no)
-    print('context:')
-    print(content[max(0,idx-300):idx+400])
-else:
-    print('kernels_neon NOT in CMakeLists.txt')
-
-with open('CMakeLists.txt', 'w') as f:
-    f.write(content)
-EOF
-        python3 /tmp/patch.py
-
-        echo "=== 验证 ==="
+        python3 -c "import base64; exec(base64.b64decode('CmltcG9ydCByZQp3aXRoIG9wZW4oJ0NNYWtlTGlzdHMudHh0JykgYXMgZjoKICAgIGNvbnRlbnQgPSBmLnJlYWQoKQpsaW5lcyA9IGNvbnRlbnQuc3BsaXRsaW5lcyhrZWVwZW5kcz1UcnVlKQppbnNlcnRfaWR4ID0gLTEKZm9yIGksbGluZSBpbiBlbnVtZXJhdGUobGluZXMpOgogICAgaWYgbGluZS5zdHJpcCgpLnN0YXJ0c3dpdGgoJ3Byb2plY3QoJyk6CiAgICAgICAgaW5zZXJ0X2lkeCA9IGkrMQogICAgICAgIGJyZWFrCmlmIGluc2VydF9pZHggPj0gMDoKICAgIGxpbmVzLmluc2VydChpbnNlcnRfaWR4LCAnXG5hZGRfY29tcGlsZV9kZWZpbml0aW9ucyhDVDJfQVJNNjRfQlVJTEQpXG4nKQogICAgY29udGVudCA9ICcnLmpvaW4obGluZXMpCiAgICBwcmludCgncGF0Y2gyIG9rIGF0IGxpbmUnLCBpbnNlcnRfaWR4KzEpCmlmICdrZXJuZWxzX25lb24nIGluIGNvbnRlbnQ6CiAgICBpZHggPSBjb250ZW50LmZpbmQoJ2tlcm5lbHNfbmVvbicpCiAgICBsbiA9IGNvbnRlbnRbOmlkeF0uY291bnQoJ1xuJykrMQogICAgcHJpbnQoJ2tlcm5lbHNfbmVvbiBhdCBsaW5lJywgbG4pCiAgICBwcmludChjb250ZW50W21heCgwLGlkeC0zMDApOmlkeCs0MDBdKQplbHNlOgogICAgcHJpbnQoJ2tlcm5lbHNfbmVvbiBOT1QgZm91bmQnKQp3aXRoIG9wZW4oJ0NNYWtlTGlzdHMudHh0JywndycpIGFzIGY6CiAgICBmLndyaXRlKGNvbnRlbnQpCg==').decode())"
         grep -n "kernels_neon\|CT2_ARM64_BUILD\|project(" CMakeLists.txt | head -10
 
     - name: Build arm64-v8a
@@ -127,7 +90,7 @@ EOF
         mkdir -p output/arm64-v8a output/armeabi-v7a
         cp CTranslate2/build-arm64/libctranslate2.so output/arm64-v8a/
         cp CTranslate2/build-v7/libctranslate2.so   output/armeabi-v7a/
-        echo "=== 成功 ===" && ls -lh output/arm64-v8a/ output/armeabi-v7a/
+        echo "OK" && ls -lh output/arm64-v8a/ output/armeabi-v7a/
 
     - name: Upload
       uses: actions/upload-artifact@v4
