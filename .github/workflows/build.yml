@@ -3,12 +3,12 @@ name: Build CTranslate2 Android
 on:
   push:
     branches: [ main ]
-  workflow_dispatch:  # 允许手动触发
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout
       uses: actions/checkout@v4
@@ -28,11 +28,12 @@ jobs:
         git clone --recursive https://github.com/OpenNMT/CTranslate2.git
         cd CTranslate2
         git checkout v3.24.0
+        git submodule update --init --recursive
 
     - name: Build for arm64-v8a
       run: |
         cd CTranslate2
-        mkdir build-android && cd build-android
+        mkdir build-arm64 && cd build-arm64
         cmake .. \
           -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
           -DANDROID_ABI=arm64-v8a \
@@ -42,13 +43,18 @@ jobs:
           -DWITH_TESTS=OFF \
           -DWITH_BENCHMARKS=OFF \
           -DOPENMP_RUNTIME=NONE \
+          -DWITH_MKL=OFF \
+          -DWITH_DNNL=OFF \
+          -DWITH_ACCELERATE=OFF \
+          -DWITH_OPENBLAS=OFF \
+          -DWITH_RUY=ON \
           -GNinja
         ninja -j$(nproc)
 
     - name: Build for armeabi-v7a
       run: |
         cd CTranslate2
-        mkdir build-android-v7 && cd build-android-v7
+        mkdir build-v7 && cd build-v7
         cmake .. \
           -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
           -DANDROID_ABI=armeabi-v7a \
@@ -58,16 +64,21 @@ jobs:
           -DWITH_TESTS=OFF \
           -DWITH_BENCHMARKS=OFF \
           -DOPENMP_RUNTIME=NONE \
+          -DWITH_MKL=OFF \
+          -DWITH_DNNL=OFF \
+          -DWITH_ACCELERATE=OFF \
+          -DWITH_OPENBLAS=OFF \
+          -DWITH_RUY=ON \
           -GNinja
         ninja -j$(nproc)
 
     - name: Collect libraries
       run: |
         mkdir -p output/arm64-v8a output/armeabi-v7a
-        cp CTranslate2/build-android/libctranslate2.so output/arm64-v8a/
-        cp CTranslate2/build-android-v7/libctranslate2.so output/armeabi-v7a/
-        ls -lh output/arm64-v8a/
-        ls -lh output/armeabi-v7a/
+        cp CTranslate2/build-arm64/libctranslate2.so output/arm64-v8a/
+        cp CTranslate2/build-v7/libctranslate2.so   output/armeabi-v7a/
+        echo "=== arm64-v8a ===" && ls -lh output/arm64-v8a/
+        echo "=== armeabi-v7a ===" && ls -lh output/armeabi-v7a/
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
