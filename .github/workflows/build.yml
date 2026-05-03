@@ -34,8 +34,9 @@ jobs:
     - name: Patch for Android
       run: |
         cd CTranslate2
+        # 修复 pthread_setaffinity_np 在 Android 上不存在
         sed -i '89s/.*/      #ifndef __ANDROID__\n      const int status = pthread_setaffinity_np(thread.native_handle(), sizeof (cpu_set_t), \&cpuset);\n      #else\n      const int status = 0;\n      #endif/' src/thread_pool.cc
-        echo "=== 补丁结果 ===" && sed -n '85,100p' src/thread_pool.cc
+        echo "=== 补丁验证 ===" && sed -n '86,96p' src/thread_pool.cc
 
     - name: Build arm64-v8a
       run: |
@@ -54,6 +55,7 @@ jobs:
           -DWITH_ACCELERATE=OFF \
           -DWITH_OPENBLAS=OFF \
           -DOPENMP_RUNTIME=NONE \
+          -DWITH_CPU_DISPATCH=OFF \
           -DCMAKE_CXX_FLAGS="-Wno-deprecated -Wno-error" \
           -GNinja
         ninja -j4
@@ -75,6 +77,7 @@ jobs:
           -DWITH_ACCELERATE=OFF \
           -DWITH_OPENBLAS=OFF \
           -DOPENMP_RUNTIME=NONE \
+          -DWITH_CPU_DISPATCH=OFF \
           -DCMAKE_CXX_FLAGS="-Wno-deprecated -Wno-error" \
           -GNinja
         ninja -j4
