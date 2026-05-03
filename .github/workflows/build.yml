@@ -35,16 +35,14 @@ jobs:
     - name: Patch for Android
       run: |
         cd CTranslate2
-        sed -i 's/const int status = pthread_setaffinity_np(thread.native_handle(), sizeof (cpu_set_t), \&cpuset);/#ifndef __ANDROID__\n      const int status = pthread_setaffinity_np(thread.native_handle(), sizeof (cpu_set_t), \&cpuset);\n      #else\n      const int status = 0;\n      #endif/' src/thread_pool.cc
-        python3 -c "import base64; exec(base64.b64decode('CmNvbnRlbnQgPSBvcGVuKCdDTWFrZUxpc3RzLnR4dCcpLnJlYWQoKQpsaW5lcyA9IGNvbnRlbnQuc3BsaXRsaW5lcyhrZWVwZW5kcz1UcnVlKQpmb3IgaSxsIGluIGVudW1lcmF0ZShsaW5lcyk6CiAgICBpZiBsLnN0cmlwKCkuc3RhcnRzd2l0aCgncHJvamVjdCgnKToKICAgICAgICBsaW5lcy5pbnNlcnQoaSsxLCAnXG5hZGRfY29tcGlsZV9kZWZpbml0aW9ucyhDVDJfQVJNNjRfQlVJTEQpXG4nKQogICAgICAgIHByaW50KCdwYXRjaDIgb2s6IGxpbmUnLCBpKzIpCiAgICAgICAgYnJlYWsKY29udGVudCA9ICcnLmpvaW4obGluZXMpCm9sZDEgPSAnY3QyX2NvbXBpbGVfa2VybmVsc19mb3JfaXNhKG5lb24gIi1EVVNFX05FT04iKScKbmV3MSA9ICdjdDJfY29tcGlsZV9rZXJuZWxzX2Zvcl9pc2EobmVvbiAiLURVU0VfTkVPTiAtRENUMl9BUk02NF9CVUlMRCIpJwppZiBvbGQxIGluIGNvbnRlbnQ6CiAgICBjb250ZW50ID0gY29udGVudC5yZXBsYWNlKG9sZDEsIG5ldzEpCiAgICBwcmludCgncGF0Y2gzYSBvaycpCmlmICdpZihBTkRST0lEKScgbm90IGluIGNvbnRlbnQ6CiAgICBvbGQyID0gJ2VuZG1hY3JvKCknCiAgICBuZXcyID0gJ2VuZG1hY3JvKClcbmlmKEFORFJPSUQpXG4gIGN0Ml9jb21waWxlX2tlcm5lbHNfZm9yX2lzYShuZW9uICItbWZwdT1uZW9uIC1EQ1QyX0FSTTY0X0JVSUxEIilcbmVuZGlmKCknCiAgICBjb250ZW50ID0gY29udGVudC5yZXBsYWNlKG9sZDIsIG5ldzIsIDEpCiAgICBwcmludCgncGF0Y2gzYiBvaycpCm9wZW4oJ0NNYWtlTGlzdHMudHh0JywndycpLndyaXRlKGNvbnRlbnQpCg==').decode())"
-        grep -n "ct2_compile_kernels_for_isa\|if(ANDROID\|CT2_ARM64" CMakeLists.txt | head -15
+        python3 -c "import base64,subprocess; subprocess.run(base64.b64decode('c2VkIC1pICdzL2NvbnN0IGludCBzdGF0dXMgPSBwdGhyZWFkX3NldGFmZmluaXR5X25wKHRocmVhZC5uYXRpdmVfaGFuZGxlKCksIHNpemVvZiAoY3B1X3NldF90KSwgXCZjcHVzZXQpOy8jaWZuZGVmIF9fQU5EUk9JRF9fXG4gICAgICBjb25zdCBpbnQgc3RhdHVzID0gcHRocmVhZF9zZXRhZmZpbml0eV9ucCh0aHJlYWQubmF0aXZlX2hhbmRsZSgpLCBzaXplb2YgKGNwdV9zZXRfdCksIFwmY3B1c2V0KTtcbiAgICAgICNlbHNlXG4gICAgICBjb25zdCBpbnQgc3RhdHVzID0gMDtcbiAgICAgICNlbmRpZi8nIHNyYy90aHJlYWRfcG9vbC5jYw==').decode(), shell=True)"
+        python3 -c "import base64; exec(base64.b64decode('CmltcG9ydCByZQpjID0gb3BlbignQ01ha2VMaXN0cy50eHQnKS5yZWFkKCkKYyA9ICdcbicuam9pbihsIGZvciBsIGluIGMuc3BsaXRsaW5lcygpIGlmICdhZGRfY29tcGlsZV9kZWZpbml0aW9ucyhDVDJfQVJNNjRfQlVJTEQpJyBub3QgaW4gbCkKYyA9IHJlLnN1YihyJ1xuaWZcKEFORFJPSURcKVxuICBjdDJfY29tcGlsZV9rZXJuZWxzX2Zvcl9pc2FbXlxuXSpcbmVuZGlmXChcKScsICcnLCBjKQpjID0gYy5yZXBsYWNlKCdjdDJfY29tcGlsZV9rZXJuZWxzX2Zvcl9pc2EobmVvbiAiLURVU0VfTkVPTiIpJywgJ2N0Ml9jb21waWxlX2tlcm5lbHNfZm9yX2lzYShuZW9uICItRFVTRV9ORU9OIC1EQ1QyX0FSTTY0X0JVSUxEIiknKQpvcGVuKCdDTWFrZUxpc3RzLnR4dCcsICd3Jykud3JpdGUoYykKcGMgPSBvcGVuKCdzcmMvY3B1L3ByaW1pdGl2ZXMuY2MnKS5yZWFkKCkKaWYgJyNkZWZpbmUgQ1QyX0FSTTY0X0JVSUxEJyBub3QgaW4gcGM6CiAgICBvcGVuKCdzcmMvY3B1L3ByaW1pdGl2ZXMuY2MnLCAndycpLndyaXRlKCcjaWZkZWYgX19BTkRST0lEX19cbiNkZWZpbmUgQ1QyX0FSTTY0X0JVSUxEXG4jZW5kaWZcbicgKyBwYykKcHJpbnQoJ3BhdGNoZXMgb2snKQpmb3IgaSxsIGluIGVudW1lcmF0ZShjLnNwbGl0bGluZXMoKSk6CiAgICBpZiAnbmVvbicgaW4gbC5sb3dlcigpIG9yICdBTkRST0lEJyBpbiBsIG9yICdBUk02NCcgaW4gbDoKICAgICAgICBwcmludChmJyAge2krMX06IHtsfScpCg==').decode())"
 
     - name: Build arm64-v8a
       env:
         ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
       run: |
         cd CTranslate2
-        echo "NDK=$ANDROID_NDK_HOME"
         mkdir build-arm64 && cd build-arm64
         cmake .. \
           -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
@@ -96,7 +94,7 @@ jobs:
         mkdir -p output/arm64-v8a output/armeabi-v7a
         cp CTranslate2/build-arm64/libctranslate2.so output/arm64-v8a/
         cp CTranslate2/build-v7/libctranslate2.so   output/armeabi-v7a/
-        echo "=== SUCCESS ===" && ls -lh output/arm64-v8a/ output/armeabi-v7a/
+        echo "SUCCESS" && ls -lh output/arm64-v8a/ output/armeabi-v7a/
 
     - name: Upload
       uses: actions/upload-artifact@v4
