@@ -1,11 +1,44 @@
-- name: Patch for Android
+name: Build CTranslate2 Android
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup NDK r25c
+      uses: nttld/setup-ndk@v1
+      with:
+        ndk-version: r25c
+        add-to-path: true
+
+    - name: Install tools
+      run: |
+        sudo apt-get update -q
+        sudo apt-get install -y cmake ninja-build python3
+
+    - name: Clone CTranslate2 v2.24.0
+      run: |
+        git clone https://github.com/OpenNMT/CTranslate2.git
+        cd CTranslate2
+        git checkout v2.24.0
+        git submodule update --init --recursive
+
+    - name: Patch for Android
       run: |
         cd CTranslate2
 
         # 补丁1：thread_pool.cc
         sed -i 's/const int status = pthread_setaffinity_np(thread.native_handle(), sizeof (cpu_set_t), \&cpuset);/#ifndef __ANDROID__\n      const int status = pthread_setaffinity_np(thread.native_handle(), sizeof (cpu_set_t), \&cpuset);\n      #else\n      const int status = 0;\n      #endif/' src/thread_pool.cc
 
-        # 补丁2 + 3：修改 CMakeLists.txt
+        # 补丁2+3：修改 CMakeLists.txt
         python3 - << 'PYEOF'
         with open('CMakeLists.txt') as f:
             content = f.read()
@@ -22,25 +55,4 @@
             content = ''.join(lines)
             print(f'✓ patch2: CT2_ARM64_BUILD 插入第{insert_idx+1}行')
 
-        # 补丁3：找到 kernels_neon.cc 相关的 target_sources 或 add_library
-        # 确保 kernels_neon.cc.o 被加入链接目标
-        # 找到 ctranslate2 target 的源文件列表，加入 kernels_neon.cc
-        import re
-
-        # 找 kernels.cc 在哪个 target_sources 里
-        # 然后在同一个列表里加 kernels_neon.cc
-        if 'kernels_neon.cc' in content:
-            # 已经在 CMakeLists.txt 里了，检查是否被正确加入 target
-            # 找 set_source_files_properties(kernels_neon.cc 的位置
-            idx = content.find('kernels_neon.cc')
-            print(f'kernels_neon.cc 在 CMakeLists.txt 第{content[:idx].count(chr(10))+1}行')
-            print('上下文:', content[max(0,idx-100):idx+200])
-        else:
-            print('✗ kernels_neon.cc 不在 CMakeLists.txt 里！')
-
-        with open('CMakeLists.txt', 'w') as f:
-            f.write(content)
-        PYEOF
-
-        echo "=== 验证 ==="
-        grep -n "kernels_neon\|CT2_ARM64_BUILD\|project(" CMakeLists.txt | head -10
+        # 补丁3：找 kernels_neon.cc 在 CMakeLists.txt 里
