@@ -31,50 +31,78 @@ jobs:
         git checkout v2.24.0
         git submodule update --init --recursive
 
-    - name: Auto-patch all Android incompatibilities
+    - name: Patch all Android issues
       run: |
         cd CTranslate2
         python3 << 'PYEOF'
-        import re, os, glob
+        import re
 
-        def patch_file(path, patches):
-            with open(path) as f:
-                c = f.read()
-            orig = c
-            for old, new in patches:
-                c = c.replace(old, new)
-            if c != orig:
-                with open(path, 'w') as f:
-                    f.write(c)
-                print(f"  ✓ patched {path}")
-            else:
-                print(f"  - unchanged {path}")
-
-        # 补丁1：thread_pool.cc - pthread_setaffinity_np
-        patch_file('src/thread_pool.cc', [(
+        # ── 补丁1：thread_pool.cc - pthread_setaffinity_np ──────────
+        with open('src/thread_pool.cc') as f: c = f.read()
+        c = c.replace(
             'const int status = pthread_setaffinity_np(thread.native_handle(), sizeof (cpu_set_t), &cpuset);',
-            '#ifndef __ANDROID__\n      const int status = pthread_setaffinity_np(thread.native_handle(), sizeof (cpu_set_t), &cpuset);\n      #else\n      const int status = 0;\n      #endif'
-        )])
+            '#ifndef __ANDROID__\n'
+            '      const int status = pthread_setaffinity_np(thread.native_handle(), sizeof (cpu_set_t), &cpuset);\n'
+            '      #else\n'
+            '      const int status = 0;\n'
+            '      #endif'
+        )
+        with open('src/thread_pool.cc', 'w') as f: f.write(c)
+        print("✓ patch1: thread_pool.cc")
 
-        # 补丁2：primitives.cc - 文件头加 undef 保护（备用）
-        path2 = 'src/cpu/primitives.cc'
-        with open(path2) as f: c = f.read()
-        guard = '// Android compatibility guard\n#ifdef __ANDROID__\n#ifndef CT2_WITH_NEON\n#define CT2_WITH_NEON\n#endif\n#endif\n'
-        if '// Android compatibility guard' not in c:
-            with open(path2, 'w') as f:
-                f.write(guard + c)
-            print(f"  ✓ patched {path2}")
+        # ── 补丁2：CMakeLists.txt - Android 时禁用 CPU dispatch ─────
+        # 根本原因：primitives.cc 被 CPU dispatch 编译时缺少 -DCPU_ISA 宏
+        # 最干净的解法：Android 上彻底关闭 CPU dispatch
+        # 在 CMakeLists.txt 里找到开启 CPU dispatch 的位置，加 Android 判断
+        with open('CMakeLists.txt') as f: c = f.read()
 
-        # 补丁3：扫描所有 .cc/.h 找 Android 不支持的 API
-        bad_apis = ['pthread_setaffinity_np', 'pthread_getaffinity_np']
-        for fpath in glob.glob('src/**/*.cc', recursive=True) + glob.glob('src/**/*.h', recursive=True):
-            with open(fpath) as f:
-                c = f.read()
-            for api in bad_apis:
-                if api in c and '#ifndef __ANDROID__' not in c:
-                    print(f"  ⚠️  {fpath} 含有 {api}，需要额外 patch")
+        # 找 CT2_WITH_CPU_DISPATCH 被设置的地方，加 NOT ANDROID 判断
+        # 通常是 target_compile_definitions 或 set(CT2_WITH_CPU_DISPATCH ...)
+        c = re.sub(
+            r'(target_compile_definitions\(ctranslate2[^)]*CT2_WITH_CPU_DISPATCH[^)]*\))',
+            r'if(NOT ANDROID)\n  \1\nendif()',
+            c
+        )
+        # 也处理 add_compile_definitions 形式
+        c = re.sub(
+            r'(add_compile_definitions\([^)]*CT2_WITH_CPU_DISPATCH[^)]*\))',
+            r'if(NOT ANDROID)\n  \1\nendif()',
+            c
+        )
+        with open('CMakeLists.txt', 'w') as f: f.write(c)
+        print("✓ patch2: CMakeLists.txt CPU dispatch")
 
-        print("补丁完成")
+        # ── 补丁3：cpu/CMakeLists.txt - 同样处理 ────────────────────
+        import os
+        cpu_cmake = 'src/cpu/CMakeLists.txt'
+        if os.path.exists(cpu_cmake):
+            with open(cpu_cmake) as f: c = f.read()
+            c = re.sub(
+                r'(.*CT2_WITH_CPU_DISPATCH.*)',
+                r'if(NOT ANDROID)\n  \1\nendif()',
+                c
+            )
+            with open(cpu_cmake, 'w') as f: f.write(c)
+            print("✓ patch3: cpu/CMakeLists.txt")
+
+        # ── 补丁4：primitives.cc 加文件头保护（兜底）──────────────
+        with open('src/cpu/primitives.cc') as f: c = f.read()
+        guard = (
+            '#ifdef __ANDROID__\n'
+            '#undef CT2_WITH_CPU_DISPATCH\n'
+            '#endif\n'
+        )
+        if '#undef CT2_WITH_CPU_DISPATCH' not in c:
+            c = guard + c
+            with open('src/cpu/primitives.cc', 'w') as f: f.write(c)
+            print("✓ patch4: primitives.cc header guard")
+
+        # ── 验证 ────────────────────────────────────────────────────
+        print("\n=== 验证补丁 ===")
+        with open('src/thread_pool.cc') as f: lines = f.readlines()
+        for i,l in enumerate(lines[85:95], 86): print(f"  thread_pool:{i} {l.rstrip()}")
+        with open('src/cpu/primitives.cc') as f: lines = f.readlines()
+        for i,l in enumerate(lines[:5], 1): print(f"  primitives:{i} {l.rstrip()}")
         PYEOF
 
     - name: Build arm64-v8a
@@ -95,14 +123,10 @@ jobs:
           -DWITH_OPENBLAS=OFF \
           -DOPENMP_RUNTIME=NONE \
           -DWITH_NEON=ON \
-          -DCMAKE_CXX_FLAGS="-Wno-deprecated -Wno-error -Wno-unused-parameter -Wno-unused-variable" \
           -DCMAKE_CXX_STANDARD=17 \
+          -DCMAKE_CXX_FLAGS="-Wno-deprecated -Wno-error -Wno-unused-parameter -Wno-unused-variable" \
           -GNinja
-        ninja -j4 2>&1 | tee build.log
-        if grep -q "error:" build.log; then
-          echo "=== 编译错误 ===" && grep "error:" build.log | head -20
-          exit 1
-        fi
+        ninja -j4
 
     - name: Build armeabi-v7a
       run: |
@@ -123,8 +147,8 @@ jobs:
           -DOPENMP_RUNTIME=NONE \
           -DWITH_NEON=ON \
           -DANDROID_ARM_NEON=TRUE \
-          -DCMAKE_CXX_FLAGS="-Wno-deprecated -Wno-error -Wno-unused-parameter -Wno-unused-variable" \
           -DCMAKE_CXX_STANDARD=17 \
+          -DCMAKE_CXX_FLAGS="-Wno-deprecated -Wno-error -Wno-unused-parameter -Wno-unused-variable" \
           -GNinja
         ninja -j4
 
@@ -133,7 +157,7 @@ jobs:
         mkdir -p output/arm64-v8a output/armeabi-v7a
         cp CTranslate2/build-arm64/libctranslate2.so output/arm64-v8a/
         cp CTranslate2/build-v7/libctranslate2.so   output/armeabi-v7a/
-        echo "=== 成功 ===" && ls -lh output/arm64-v8a/ output/armeabi-v7a/
+        ls -lh output/arm64-v8a/ output/armeabi-v7a/
 
     - name: Upload
       uses: actions/upload-artifact@v4
