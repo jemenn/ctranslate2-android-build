@@ -31,17 +31,37 @@ jobs:
         git checkout v2.24.0
         git submodule update --init --recursive
 
-    - name: Inspect CMakeLists
+    - name: Patch for Android
       run: |
         cd CTranslate2
-        echo "=== grep kernels in CMakeLists.txt ==="
-        grep -n "kernels\|CPU_ISA\|set_source_files\|configure_file\|file(WRITE\|file(GENERATE" CMakeLists.txt | head -60
-        echo ""
-        echo "=== all CMakeLists.txt files ==="
-        find . -name "CMakeLists.txt" | xargs grep -l "kernels" 2>/dev/null
-        echo ""
-        echo "=== cmake folder ==="
-        ls cmake/ 2>/dev/null || echo "no cmake dir"
-        echo ""
-        echo "=== src/cpu folder ==="
-        ls src/cpu/
+        sed -i 's/const int status = pthread_setaffinity_np(thread.native_handle(), sizeof (cpu_set_t), \&cpuset);/#ifndef __ANDROID__\n      const int status = pthread_setaffinity_np(thread.native_handle(), sizeof (cpu_set_t), \&cpuset);\n      #else\n      const int status = 0;\n      #endif/' src/thread_pool.cc
+        python3 -c "import base64; exec(base64.b64decode('CmNvbnRlbnQgPSBvcGVuKCdDTWFrZUxpc3RzLnR4dCcpLnJlYWQoKQpsaW5lcyA9IGNvbnRlbnQuc3BsaXRsaW5lcyhrZWVwZW5kcz1UcnVlKQpmb3IgaSxsIGluIGVudW1lcmF0ZShsaW5lcyk6CiAgICBpZiBsLnN0cmlwKCkuc3RhcnRzd2l0aCgncHJvamVjdCgnKToKICAgICAgICBsaW5lcy5pbnNlcnQoaSsxLCAnXG5hZGRfY29tcGlsZV9kZWZpbml0aW9ucyhDVDJfQVJNNjRfQlVJTEQpXG4nKQogICAgICAgIHByaW50KCdwYXRjaDIgb2s6IGxpbmUnLCBpKzIpCiAgICAgICAgYnJlYWsKY29udGVudCA9ICcnLmpvaW4obGluZXMpCm9sZDEgPSAnY3QyX2NvbXBpbGVfa2VybmVsc19mb3JfaXNhKG5lb24gIi1EVVNFX05FT04iKScKbmV3MSA9ICdjdDJfY29tcGlsZV9rZXJuZWxzX2Zvcl9pc2EobmVvbiAiLURVU0VfTkVPTiAtRENUMl9BUk02NF9CVUlMRCIpJwppZiBvbGQxIGluIGNvbnRlbnQ6CiAgICBjb250ZW50ID0gY29udGVudC5yZXBsYWNlKG9sZDEsIG5ldzEpCiAgICBwcmludCgncGF0Y2gzYSBvaycpCmlmICdpZihBTkRST0lEKScgbm90IGluIGNvbnRlbnQ6CiAgICBvbGQyID0gJ2VuZG1hY3JvKCknCiAgICBuZXcyID0gJ2VuZG1hY3JvKClcbmlmKEFORFJPSUQpXG4gIGN0Ml9jb21waWxlX2tlcm5lbHNfZm9yX2lzYShuZW9uICItbWZwdT1uZW9uIC1EQ1QyX0FSTTY0X0JVSUxEIilcbmVuZGlmKCknCiAgICBjb250ZW50ID0gY29udGVudC5yZXBsYWNlKG9sZDIsIG5ldzIsIDEpCiAgICBwcmludCgncGF0Y2gzYiBvaycpCm9wZW4oJ0NNYWtlTGlzdHMudHh0JywndycpLndyaXRlKGNvbnRlbnQpCg==').decode())"
+        grep -n "ct2_compile_kernels_for_isa\|if(ANDROID\|CT2_ARM64" CMakeLists.txt | head -15
+
+    - name: Build arm64-v8a
+      run: |
+        cd CTranslate2
+        mkdir build-arm64 && cd build-arm64
+        cmake ..           -DCMAKE_TOOLCHAIN_FILE=/build/cmake/android.toolchain.cmake           -DANDROID_ABI=arm64-v8a           -DANDROID_PLATFORM=android-26           -DCMAKE_BUILD_TYPE=Release           -DBUILD_SHARED_LIBS=ON           -DWITH_TESTS=OFF           -DWITH_BENCHMARKS=OFF           -DWITH_MKL=OFF           -DWITH_DNNL=OFF           -DWITH_ACCELERATE=OFF           -DWITH_OPENBLAS=OFF           -DOPENMP_RUNTIME=NONE           -DWITH_NEON=ON           -DCMAKE_CXX_STANDARD=17           -DCMAKE_CXX_FLAGS="-Wno-deprecated -Wno-error -Wno-unused"           -GNinja
+        ninja -j4
+
+    - name: Build armeabi-v7a
+      run: |
+        cd CTranslate2
+        mkdir build-v7 && cd build-v7
+        cmake ..           -DCMAKE_TOOLCHAIN_FILE=/build/cmake/android.toolchain.cmake           -DANDROID_ABI=armeabi-v7a           -DANDROID_PLATFORM=android-26           -DCMAKE_BUILD_TYPE=Release           -DBUILD_SHARED_LIBS=ON           -DWITH_TESTS=OFF           -DWITH_BENCHMARKS=OFF           -DWITH_MKL=OFF           -DWITH_DNNL=OFF           -DWITH_ACCELERATE=OFF           -DWITH_OPENBLAS=OFF           -DOPENMP_RUNTIME=NONE           -DWITH_NEON=ON           -DANDROID_ARM_NEON=TRUE           -DCMAKE_CXX_STANDARD=17           -DCMAKE_CXX_FLAGS="-Wno-deprecated -Wno-error -Wno-unused"           -GNinja
+        ninja -j4
+
+    - name: Package
+      run: |
+        mkdir -p output/arm64-v8a output/armeabi-v7a
+        cp CTranslate2/build-arm64/libctranslate2.so output/arm64-v8a/
+        cp CTranslate2/build-v7/libctranslate2.so   output/armeabi-v7a/
+        echo "=== SUCCESS ===" && ls -lh output/arm64-v8a/ output/armeabi-v7a/
+
+    - name: Upload
+      uses: actions/upload-artifact@v4
+      with:
+        name: ctranslate2-android-libs
+        path: output/
+        retention-days: 30
