@@ -31,70 +31,17 @@ jobs:
         git checkout v2.24.0
         git submodule update --init --recursive
 
-    - name: Patch for Android
+    - name: Inspect CMakeLists
       run: |
         cd CTranslate2
-        sed -i 's/const int status = pthread_setaffinity_np(thread.native_handle(), sizeof (cpu_set_t), \&cpuset);/#ifndef __ANDROID__\n      const int status = pthread_setaffinity_np(thread.native_handle(), sizeof (cpu_set_t), \&cpuset);\n      #else\n      const int status = 0;\n      #endif/' src/thread_pool.cc
-        python3 -c "import base64; exec(base64.b64decode('CmltcG9ydCByZQp3aXRoIG9wZW4oJ0NNYWtlTGlzdHMudHh0JykgYXMgZjoKICAgIGNvbnRlbnQgPSBmLnJlYWQoKQpsaW5lcyA9IGNvbnRlbnQuc3BsaXRsaW5lcyhrZWVwZW5kcz1UcnVlKQppbnNlcnRfaWR4ID0gLTEKZm9yIGksbGluZSBpbiBlbnVtZXJhdGUobGluZXMpOgogICAgaWYgbGluZS5zdHJpcCgpLnN0YXJ0c3dpdGgoJ3Byb2plY3QoJyk6CiAgICAgICAgaW5zZXJ0X2lkeCA9IGkrMQogICAgICAgIGJyZWFrCmlmIGluc2VydF9pZHggPj0gMDoKICAgIGxpbmVzLmluc2VydChpbnNlcnRfaWR4LCAnXG5hZGRfY29tcGlsZV9kZWZpbml0aW9ucyhDVDJfQVJNNjRfQlVJTEQpXG4nKQogICAgY29udGVudCA9ICcnLmpvaW4obGluZXMpCiAgICBwcmludCgncGF0Y2gyIG9rIGF0IGxpbmUnLCBpbnNlcnRfaWR4KzEpCmlmICdrZXJuZWxzX25lb24nIGluIGNvbnRlbnQ6CiAgICBpZHggPSBjb250ZW50LmZpbmQoJ2tlcm5lbHNfbmVvbicpCiAgICBsbiA9IGNvbnRlbnRbOmlkeF0uY291bnQoJ1xuJykrMQogICAgcHJpbnQoJ2tlcm5lbHNfbmVvbiBhdCBsaW5lJywgbG4pCiAgICBwcmludChjb250ZW50W21heCgwLGlkeC0zMDApOmlkeCs0MDBdKQplbHNlOgogICAgcHJpbnQoJ2tlcm5lbHNfbmVvbiBOT1QgZm91bmQnKQp3aXRoIG9wZW4oJ0NNYWtlTGlzdHMudHh0JywndycpIGFzIGY6CiAgICBmLndyaXRlKGNvbnRlbnQpCg==').decode())"
-        grep -n "kernels_neon\|CT2_ARM64_BUILD\|project(" CMakeLists.txt | head -10
-
-    - name: Build arm64-v8a
-      run: |
-        cd CTranslate2
-        mkdir build-arm64 && cd build-arm64
-        cmake .. \
-          -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
-          -DANDROID_ABI=arm64-v8a \
-          -DANDROID_PLATFORM=android-26 \
-          -DCMAKE_BUILD_TYPE=Release \
-          -DBUILD_SHARED_LIBS=ON \
-          -DWITH_TESTS=OFF \
-          -DWITH_BENCHMARKS=OFF \
-          -DWITH_MKL=OFF \
-          -DWITH_DNNL=OFF \
-          -DWITH_ACCELERATE=OFF \
-          -DWITH_OPENBLAS=OFF \
-          -DOPENMP_RUNTIME=NONE \
-          -DWITH_NEON=ON \
-          -DCMAKE_CXX_STANDARD=17 \
-          -DCMAKE_CXX_FLAGS="-Wno-deprecated -Wno-error -Wno-unused" \
-          -GNinja
-        ninja -j4
-
-    - name: Build armeabi-v7a
-      run: |
-        cd CTranslate2
-        mkdir build-v7 && cd build-v7
-        cmake .. \
-          -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
-          -DANDROID_ABI=armeabi-v7a \
-          -DANDROID_PLATFORM=android-26 \
-          -DCMAKE_BUILD_TYPE=Release \
-          -DBUILD_SHARED_LIBS=ON \
-          -DWITH_TESTS=OFF \
-          -DWITH_BENCHMARKS=OFF \
-          -DWITH_MKL=OFF \
-          -DWITH_DNNL=OFF \
-          -DWITH_ACCELERATE=OFF \
-          -DWITH_OPENBLAS=OFF \
-          -DOPENMP_RUNTIME=NONE \
-          -DWITH_NEON=ON \
-          -DANDROID_ARM_NEON=TRUE \
-          -DCMAKE_CXX_STANDARD=17 \
-          -DCMAKE_CXX_FLAGS="-Wno-deprecated -Wno-error -Wno-unused" \
-          -GNinja
-        ninja -j4
-
-    - name: Package
-      run: |
-        mkdir -p output/arm64-v8a output/armeabi-v7a
-        cp CTranslate2/build-arm64/libctranslate2.so output/arm64-v8a/
-        cp CTranslate2/build-v7/libctranslate2.so   output/armeabi-v7a/
-        echo "OK" && ls -lh output/arm64-v8a/ output/armeabi-v7a/
-
-    - name: Upload
-      uses: actions/upload-artifact@v4
-      with:
-        name: ctranslate2-android-libs
-        path: output/
-        retention-days: 30
+        echo "=== grep kernels in CMakeLists.txt ==="
+        grep -n "kernels\|CPU_ISA\|set_source_files\|configure_file\|file(WRITE\|file(GENERATE" CMakeLists.txt | head -60
+        echo ""
+        echo "=== all CMakeLists.txt files ==="
+        find . -name "CMakeLists.txt" | xargs grep -l "kernels" 2>/dev/null
+        echo ""
+        echo "=== cmake folder ==="
+        ls cmake/ 2>/dev/null || echo "no cmake dir"
+        echo ""
+        echo "=== src/cpu folder ==="
+        ls src/cpu/
