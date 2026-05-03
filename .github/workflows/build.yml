@@ -13,24 +13,25 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
-    - name: Setup Android NDK
+    - name: Setup Android NDK r23c
       uses: nttld/setup-ndk@v1
       with:
-        ndk-version: r25c
+        ndk-version: r23c
+        add-to-path: true
 
     - name: Install dependencies
       run: |
         sudo apt-get update
         sudo apt-get install -y cmake ninja-build
 
-    - name: Clone CTranslate2
+    - name: Clone CTranslate2 v2.24.0
       run: |
-        git clone --recursive https://github.com/OpenNMT/CTranslate2.git
+        git clone https://github.com/OpenNMT/CTranslate2.git
         cd CTranslate2
-        git checkout v3.24.0
+        git checkout v2.24.0
         git submodule update --init --recursive
 
-    - name: Build for arm64-v8a
+    - name: Build arm64-v8a
       run: |
         cd CTranslate2
         mkdir build-arm64 && cd build-arm64
@@ -42,16 +43,16 @@ jobs:
           -DBUILD_SHARED_LIBS=ON \
           -DWITH_TESTS=OFF \
           -DWITH_BENCHMARKS=OFF \
-          -DOPENMP_RUNTIME=NONE \
           -DWITH_MKL=OFF \
           -DWITH_DNNL=OFF \
           -DWITH_ACCELERATE=OFF \
           -DWITH_OPENBLAS=OFF \
-          -DWITH_RUY=ON \
+          -DOPENMP_RUNTIME=NONE \
+          -DCMAKE_CXX_FLAGS="-Wno-deprecated" \
           -GNinja
-        ninja -j$(nproc)
+        ninja -j4
 
-    - name: Build for armeabi-v7a
+    - name: Build armeabi-v7a
       run: |
         cd CTranslate2
         mkdir build-v7 && cd build-v7
@@ -63,24 +64,24 @@ jobs:
           -DBUILD_SHARED_LIBS=ON \
           -DWITH_TESTS=OFF \
           -DWITH_BENCHMARKS=OFF \
-          -DOPENMP_RUNTIME=NONE \
           -DWITH_MKL=OFF \
           -DWITH_DNNL=OFF \
           -DWITH_ACCELERATE=OFF \
           -DWITH_OPENBLAS=OFF \
-          -DWITH_RUY=ON \
+          -DOPENMP_RUNTIME=NONE \
+          -DCMAKE_CXX_FLAGS="-Wno-deprecated" \
           -GNinja
-        ninja -j$(nproc)
+        ninja -j4
 
-    - name: Collect libraries
+    - name: Package
       run: |
         mkdir -p output/arm64-v8a output/armeabi-v7a
         cp CTranslate2/build-arm64/libctranslate2.so output/arm64-v8a/
         cp CTranslate2/build-v7/libctranslate2.so   output/armeabi-v7a/
-        echo "=== arm64-v8a ===" && ls -lh output/arm64-v8a/
-        echo "=== armeabi-v7a ===" && ls -lh output/armeabi-v7a/
+        ls -lh output/arm64-v8a/
+        ls -lh output/armeabi-v7a/
 
-    - name: Upload artifacts
+    - name: Upload
       uses: actions/upload-artifact@v4
       with:
         name: ctranslate2-android-libs
