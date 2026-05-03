@@ -1,127 +1,46 @@
-name: Build CTranslate2 Android
-
-on:
-  push:
-    branches: [ main ]
-  workflow_dispatch:
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-
-    - name: Setup NDK r25c
-      uses: nttld/setup-ndk@v1
-      with:
-        ndk-version: r25c
-        add-to-path: true
-
-    - name: Install tools
-      run: |
-        sudo apt-get update -q
-        sudo apt-get install -y cmake ninja-build python3
-
-    - name: Clone CTranslate2 v2.24.0
-      run: |
-        git clone https://github.com/OpenNMT/CTranslate2.git
-        cd CTranslate2
-        git checkout v2.24.0
-        git submodule update --init --recursive
-
-    - name: Patch for Android
+- name: Patch for Android
       run: |
         cd CTranslate2
 
         # 补丁1：thread_pool.cc
         sed -i 's/const int status = pthread_setaffinity_np(thread.native_handle(), sizeof (cpu_set_t), \&cpuset);/#ifndef __ANDROID__\n      const int status = pthread_setaffinity_np(thread.native_handle(), sizeof (cpu_set_t), \&cpuset);\n      #else\n      const int status = 0;\n      #endif/' src/thread_pool.cc
 
-        # 补丁2：在 project() 之后插入全局宏定义
+        # 补丁2 + 3：修改 CMakeLists.txt
         python3 - << 'PYEOF'
         with open('CMakeLists.txt') as f:
-            lines = f.readlines()
+            content = f.read()
+
+        # 补丁2：在 project() 后插入全局宏
+        lines = content.splitlines(keepends=True)
         insert_idx = -1
         for i, line in enumerate(lines):
             if line.strip().startswith('project('):
                 insert_idx = i + 1
                 break
-        if insert_idx == -1:
-            for i, line in enumerate(lines):
-                if 'cmake_minimum_required' in line:
-                    insert_idx = i + 1
-                    break
         if insert_idx >= 0:
             lines.insert(insert_idx, '\nadd_compile_definitions(CT2_ARM64_BUILD)\n')
-            with open('CMakeLists.txt', 'w') as f:
-                f.writelines(lines)
-            print(f'✓ 插入在第 {insert_idx+1} 行')
+            content = ''.join(lines)
+            print(f'✓ patch2: CT2_ARM64_BUILD 插入第{insert_idx+1}行')
+
+        # 补丁3：找到 kernels_neon.cc 相关的 target_sources 或 add_library
+        # 确保 kernels_neon.cc.o 被加入链接目标
+        # 找到 ctranslate2 target 的源文件列表，加入 kernels_neon.cc
+        import re
+
+        # 找 kernels.cc 在哪个 target_sources 里
+        # 然后在同一个列表里加 kernels_neon.cc
+        if 'kernels_neon.cc' in content:
+            # 已经在 CMakeLists.txt 里了，检查是否被正确加入 target
+            # 找 set_source_files_properties(kernels_neon.cc 的位置
+            idx = content.find('kernels_neon.cc')
+            print(f'kernels_neon.cc 在 CMakeLists.txt 第{content[:idx].count(chr(10))+1}行')
+            print('上下文:', content[max(0,idx-100):idx+200])
         else:
-            print('✗ 未找到插入位置')
+            print('✗ kernels_neon.cc 不在 CMakeLists.txt 里！')
+
+        with open('CMakeLists.txt', 'w') as f:
+            f.write(content)
         PYEOF
 
         echo "=== 验证 ==="
-        grep -n "CT2_ARM64_BUILD\|cmake_minimum\|project(" CMakeLists.txt | head -6
-        grep -A3 "__ANDROID__" src/thread_pool.cc | head -6
-
-    - name: Build arm64-v8a
-      run: |
-        cd CTranslate2
-        mkdir build-arm64 && cd build-arm64
-        cmake .. \
-          -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
-          -DANDROID_ABI=arm64-v8a \
-          -DANDROID_PLATFORM=android-26 \
-          -DCMAKE_BUILD_TYPE=Release \
-          -DBUILD_SHARED_LIBS=ON \
-          -DWITH_TESTS=OFF \
-          -DWITH_BENCHMARKS=OFF \
-          -DWITH_MKL=OFF \
-          -DWITH_DNNL=OFF \
-          -DWITH_ACCELERATE=OFF \
-          -DWITH_OPENBLAS=OFF \
-          -DOPENMP_RUNTIME=NONE \
-          -DWITH_NEON=ON \
-          -DCMAKE_CXX_STANDARD=17 \
-          -DCMAKE_CXX_FLAGS="-Wno-deprecated -Wno-error -Wno-unused" \
-          -GNinja
-        ninja -j4
-
-    - name: Build armeabi-v7a
-      run: |
-        cd CTranslate2
-        mkdir build-v7 && cd build-v7
-        cmake .. \
-          -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
-          -DANDROID_ABI=armeabi-v7a \
-          -DANDROID_PLATFORM=android-26 \
-          -DCMAKE_BUILD_TYPE=Release \
-          -DBUILD_SHARED_LIBS=ON \
-          -DWITH_TESTS=OFF \
-          -DWITH_BENCHMARKS=OFF \
-          -DWITH_MKL=OFF \
-          -DWITH_DNNL=OFF \
-          -DWITH_ACCELERATE=OFF \
-          -DWITH_OPENBLAS=OFF \
-          -DOPENMP_RUNTIME=NONE \
-          -DWITH_NEON=ON \
-          -DANDROID_ARM_NEON=TRUE \
-          -DCMAKE_CXX_STANDARD=17 \
-          -DCMAKE_CXX_FLAGS="-Wno-deprecated -Wno-error -Wno-unused" \
-          -GNinja
-        ninja -j4
-
-    - name: Package
-      run: |
-        mkdir -p output/arm64-v8a output/armeabi-v7a
-        cp CTranslate2/build-arm64/libctranslate2.so output/arm64-v8a/
-        cp CTranslate2/build-v7/libctranslate2.so   output/armeabi-v7a/
-        echo "=== 成功 ===" && ls -lh output/arm64-v8a/ output/armeabi-v7a/
-
-    - name: Upload
-      uses: actions/upload-artifact@v4
-      with:
-        name: ctranslate2-android-libs
-        path: output/
-        retention-days: 30
+        grep -n "kernels_neon\|CT2_ARM64_BUILD\|project(" CMakeLists.txt | head -10
