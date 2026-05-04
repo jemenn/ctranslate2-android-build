@@ -65,15 +65,14 @@ jobs:
 
     - name: Package
       run: |
-        mkdir -p output/arm64-v8a output/include output/include/nlohmann output/include/half_float
+        mkdir -p output/arm64-v8a output/include
         cp CTranslate2/build-arm64/libctranslate2.so output/arm64-v8a/
         cp -r CTranslate2/include/ctranslate2 output/include/
-        find CTranslate2/third_party -name "json.hpp" | head -1 | xargs -I{} cp {} output/include/nlohmann/ 2>/dev/null || true
-        find CTranslate2/third_party -name "half.hpp" | head -1 | xargs -I{} cp {} output/include/half_float/ 2>/dev/null || true
-        echo "=== third_party dirs ===" && ls CTranslate2/third_party/
-        echo "=== nlohmann ===" && find CTranslate2 -name "json.hpp" 2>/dev/null | head -5
-        echo "=== half ===" && find CTranslate2 -name "half.hpp" 2>/dev/null | head -5
-        echo "SUCCESS" && ls -lh output/arm64-v8a/ && ls output/include/
+        cp -r CTranslate2/include/nlohmann output/include/
+        cp -r CTranslate2/include/half_float output/include/
+        echo "SUCCESS"
+        ls -lh output/arm64-v8a/
+        echo "include:" && ls output/include/
 
     - name: Upload
       uses: actions/upload-artifact@v4
