@@ -1,42 +1,82 @@
-name: Convert Model to CT2
+name: Build CTranslate2 Android
 
 on:
+  push:
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
-  convert:
+  build:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Install ctranslate2
-      run: pip install ctranslate2 sentencepiece
+    - name: Checkout
+      uses: actions/checkout@v4
 
-    - name: Download model from HuggingFace
+    - name: Setup NDK r25c
+      id: setup-ndk
+      uses: nttld/setup-ndk@v1
+      with:
+        ndk-version: r25c
+        add-to-path: true
+
+    - name: Install tools
       run: |
-        pip install huggingface_hub
-        python3 -c "
-import os
-os.environ['HF_ENDPOINT'] = 'https://hf-mirror.com'
-from huggingface_hub import snapshot_download
-snapshot_download('Helsinki-NLP/opus-mt-en-zh', local_dir='opus-mt-en-zh')
-print('下载完成')
-import os
-for f in os.listdir('opus-mt-en-zh'):
-    print(f)
-"
+        sudo apt-get update -q
+        sudo apt-get install -y cmake ninja-build python3
 
-    - name: Convert to CTranslate2 format
+    - name: Clone CTranslate2 v4.3.1
       run: |
-        ct2-opus-mt-converter \
-          --model_dir opus-mt-en-zh \
-          --output_dir opus-mt-en-zh-ct2 \
-          --quantization int8
-        echo "转换完成"
-        ls -lh opus-mt-en-zh-ct2/
+        git clone https://github.com/OpenNMT/CTranslate2.git
+        cd CTranslate2
+        git checkout v4.3.1
+        git submodule update --init --recursive
 
-    - name: Upload CT2 model
+    - name: Patch for Android
+      run: |
+        cd CTranslate2
+        python3 -c "import base64,subprocess; subprocess.run(base64.b64decode('c2VkIC1pICdzL2NvbnN0IGludCBzdGF0dXMgPSBwdGhyZWFkX3NldGFmZmluaXR5X25wKHRocmVhZC5uYXRpdmVfaGFuZGxlKCksIHNpemVvZiAoY3B1X3NldF90KSwgXCZjcHVzZXQpOy8jaWZuZGVmIF9fQU5EUk9JRF9fXG4gICAgICBjb25zdCBpbnQgc3RhdHVzID0gcHRocmVhZF9zZXRhZmZpbml0eV9ucCh0aHJlYWQubmF0aXZlX2hhbmRsZSgpLCBzaXplb2YgKGNwdV9zZXRfdCksIFwmY3B1c2V0KTtcbiAgICAgICNlbHNlXG4gICAgICBjb25zdCBpbnQgc3RhdHVzID0gMDtcbiAgICAgICNlbmRpZi8nIHNyYy90aHJlYWRfcG9vbC5jYw==').decode(), shell=True)"
+        python3 -c "import base64; exec(base64.b64decode('CmltcG9ydCByZSwgZ2xvYiwgb3MKCmMgPSBvcGVuKCdDTWFrZUxpc3RzLnR4dCcpLnJlYWQoKQoKIyDnp7vpmaTml6fooaXkuIHmrovnlZkKYyA9ICdcbicuam9pbihsIGZvciBsIGluIGMuc3BsaXRsaW5lcygpCiAgICBpZiAnYWRkX2NvbXBpbGVfZGVmaW5pdGlvbnMoQ1QyX0FSTTY0X0JVSUxEKScgbm90IGluIGwpCmMgPSByZS5zdWIocidpZlwoQU5EUk9JRFwpXG4gIHNldFwoQ1QyX0FSTTY0X0JVSUxEIE9OXClcbmVuZGlmXChcKVxuJywgJycsIGMpCmMgPSByZS5zdWIocidcbmlmXChBTkRST0lEXClcbiAgY3QyX2NvbXBpbGVfa2VybmVsc19mb3JfaXNhW15cbl0qXG5lbmRpZlwoXCknLCAnJywgYykKCiMg5p2h5Lu25pS55Li6IENUMl9BUk02NF9CVUlMRCBPUiBXSVRIX05FT04KYyA9IHJlLnN1YihyJ2lmXHMqXChccypDVDJfQVJNNjRfQlVJTERccypcKScsICdpZihDVDJfQVJNNjRfQlVJTEQgT1IgV0lUSF9ORU9OKScsIGMpCgojIG5lb24gZmxhZyDliqAgQ1QyX0FSTTY0X0JVSUxECmMgPSBjLnJlcGxhY2UoCiAgICAnY3QyX2NvbXBpbGVfa2VybmVsc19mb3JfaXNhKG5lb24gIi1EVVNFX05FT04iKScsCiAgICAnY3QyX2NvbXBpbGVfa2VybmVsc19mb3JfaXNhKG5lb24gIi1EVVNFX05FT04gLURDVDJfQVJNNjRfQlVJTEQiKScKKQpvcGVuKCdDTWFrZUxpc3RzLnR4dCcsICd3Jykud3JpdGUoYykKCiMg5omA5pyJIG9wcyDmupDmlofku7bliqAgQW5kcm9pZCBndWFyZApndWFyZCA9ICcjaWZkZWYgX19BTkRST0lEX19cbiNpZm5kZWYgQ1QyX0FSTTY0X0JVSUxEXG4jZGVmaW5lIENUMl9BUk02NF9CVUlMRFxuI2VuZGlmXG4jZW5kaWZcbicKZmlsZXMgPSBbJ3NyYy9jcHUvcHJpbWl0aXZlcy5jYyddICsgZ2xvYi5nbG9iKCdzcmMvb3BzLypfY3B1LmNjJykKZm9yIGYgaW4gZmlsZXM6CiAgICBpZiBvcy5wYXRoLmV4aXN0cyhmKToKICAgICAgICB0eHQgPSBvcGVuKGYpLnJlYWQoKQogICAgICAgIGlmICcjaWZuZGVmIENUMl9BUk02NF9CVUlMRCcgbm90IGluIHR4dDoKICAgICAgICAgICAgb3BlbihmLCd3Jykud3JpdGUoZ3VhcmQgKyB0eHQpCgpwcmludCgncGF0Y2hlcyBkb25lJykKZm9yIGksbCBpbiBlbnVtZXJhdGUob3BlbignQ01ha2VMaXN0cy50eHQnKS5yZWFkKCkuc3BsaXRsaW5lcygpKToKICAgIGlmICdDVDJfQVJNNjRfQlVJTEQgT1InIGluIGwgb3IgJ2N0Ml9jb21waWxlX2tlcm5lbHNfZm9yX2lzYShuZW9uJyBpbiBsOgogICAgICAgIHByaW50KGYnICB7aSsxfToge2x9JykK').decode())"
+
+    - name: Build arm64-v8a
+      env:
+        ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+      run: |
+        cd CTranslate2
+        mkdir build-arm64 && cd build-arm64
+        cmake .. \
+          -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
+          -DANDROID_ABI=arm64-v8a \
+          -DANDROID_PLATFORM=android-26 \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DBUILD_SHARED_LIBS=ON \
+          -DWITH_TESTS=OFF \
+          -DWITH_BENCHMARKS=OFF \
+          -DWITH_MKL=OFF \
+          -DWITH_DNNL=OFF \
+          -DWITH_ACCELERATE=OFF \
+          -DWITH_OPENBLAS=OFF \
+          -DOPENMP_RUNTIME=NONE \
+          -DWITH_NEON=ON \
+          -DCMAKE_CXX_STANDARD=17 \
+          -DCMAKE_CXX_FLAGS="-Wno-deprecated -Wno-error -Wno-unused" \
+          -GNinja
+        ninja -j4
+
+    - name: Package
+      run: |
+        mkdir -p output/arm64-v8a output/include
+        cp CTranslate2/build-arm64/libctranslate2.so output/arm64-v8a/
+        cp -r CTranslate2/include/ctranslate2 output/include/
+        cp -r CTranslate2/include/nlohmann output/include/
+        cp -r CTranslate2/include/half_float output/include/
+        echo "SUCCESS"
+        ls -lh output/arm64-v8a/
+        echo "include:" && ls output/include/
+
+    - name: Upload
       uses: actions/upload-artifact@v4
       with:
-        name: opus-mt-en-zh-ct2
-        path: opus-mt-en-zh-ct2/
-        retention-days: 7
+        name: ctranslate2-android-libs
+        path: output/
+        retention-days: 30
