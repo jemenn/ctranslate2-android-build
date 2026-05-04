@@ -11,40 +11,44 @@ jobs:
 
     steps:
     - name: Checkout
-      uses: actions/checkout@v4
+      [span_4](start_span)uses: actions/checkout@v4[span_4](end_span)
 
     - name: Setup NDK r25c
       id: setup-ndk
       uses: nttld/setup-ndk@v1
       with:
         ndk-version: r25c
-        add-to-path: true
+        [span_5](start_span)add-to-path: true[span_5](end_span)
 
     - name: Install tools
       run: |
-        sudo apt-get update -q
-        sudo apt-get install -y cmake ninja-build python3
+        [span_6](start_span)sudo apt-get update -q[span_6](end_span)
+        [span_7](start_span)sudo apt-get install -y cmake ninja-build python3[span_7](end_span)
 
     - name: Clone CTranslate2 v2.24.0
       run: |
-        git clone https://github.com/OpenNMT/CTranslate2.git
+        [span_8](start_span)git clone https://github.com/OpenNMT/CTranslate2.git[span_8](end_span)
         cd CTranslate2
-        git checkout v2.24.0
-        git submodule update --init --recursive
+        [span_9](start_span)git checkout v2.24.0[span_9](end_span)
+        [span_10](start_span)git submodule update --init --recursive[span_10](end_span)
 
     - name: Patch for Android
       run: |
         cd CTranslate2
-        python3 -c "import base64,subprocess; subprocess.run(base64.b64decode('c2VkIC1pICdzL2NvbnN0IGludCBzdGF0dXMgPSBwdGhyZWFkX3NldGFmZmluaXR5X25wKHRocmVhZC5uYXRpdmVfaGFuZGxlKCksIHNpemVvZiAoY3B1X3NldF90KSwgXCZjcHVzZXQpOy8jaWZuZGVmIF9fQU5EUk9JRF9fXG4gICAgICBjb25zdCBpbnQgc3RhdHVzID0gcHRocmVhZF9zZXRhZmZpbml0eV9ucCh0aHJlYWQubmF0aXZlX2hhbmRsZSgpLCBzaXplb2YgKGNwdV9zZXRfdCksIFwmY3B1c2V0KTtcbiAgICAgICNlbHNlXG4gICAgICBjb25zdCBpbnQgc3RhdHVzID0gMDtcbiAgICAgICNlbmRpZi8nIHNyYy90aHJlYWRfcG9vbC5jYw==').decode(), shell=True)"
-        python3 -c "import base64; exec(base64.b64decode('CmltcG9ydCByZSwgZ2xvYgoKYyA9IG9wZW4oJ0NNYWtlTGlzdHMudHh0JykucmVhZCgpCgojIOenu+mZpOaJgOacieaXp+ihpeS4geaui+eVmQpjID0gJ1xuJy5qb2luKGwgZm9yIGwgaW4gYy5zcGxpdGxpbmVzKCkgCiAgICBpZiAnYWRkX2NvbXBpbGVfZGVmaW5pdGlvbnMoQ1QyX0FSTTY0X0JVSUxEKScgbm90IGluIGwpCmMgPSByZS5zdWIocidpZlwoQU5EUk9JRFwpXG4gIHNldFwoQ1QyX0FSTTY0X0JVSUxEIE9OXClcbmVuZGlmXChcKVxuJywgJycsIGMpCmMgPSByZS5zdWIocidcbmlmXChBTkRST0lEXClcbiAgY3QyX2NvbXBpbGVfa2VybmVsc19mb3JfaXNhW15cbl0qXG5lbmRpZlwoXCknLCAnJywgYykKCiMg5p2h5Lu25pS55Li6IENUMl9BUk02NF9CVUlMRCBPUiBXSVRIX05FT04KYyA9IHJlLnN1YihyJ2lmXChDVDJfQVJNNjRfQlVJTERcKScsICdpZihDVDJfQVJNNjRfQlVJTEQgT1IgV0lUSF9ORU9OKScsIGMpCgojIG5lb24gZmxhZyDliqAgQ1QyX0FSTTY0X0JVSUxECmMgPSBjLnJlcGxhY2UoCiAgICAnY3QyX2NvbXBpbGVfa2VybmVsc19mb3JfaXNhKG5lb24gIi1EVVNFX05FT04iKScsCiAgICAnY3QyX2NvbXBpbGVfa2VybmVsc19mb3JfaXNhKG5lb24gIi1EVVNFX05FT04gLURDVDJfQVJNNjRfQlVJTEQiKScKKQpvcGVuKCdDTWFrZUxpc3RzLnR4dCcsICd3Jykud3JpdGUoYykKCiMg5omA5pyJ55So5YiwIElTQSDnmoTmupDmlofku7bliqDlpLTpg6ggZ3VhcmQKZ3VhcmQgPSAnI2lmZGVmIF9fQU5EUk9JRF9fXG4jaWZuZGVmIENUMl9BUk02NF9CVUlMRFxuI2RlZmluZSBDVDJfQVJNNjRfQlVJTERcbiNlbmRpZlxuI2VuZGlmXG4nCmZpbGVzID0gWydzcmMvY3B1L3ByaW1pdGl2ZXMuY2MnXSArIGdsb2IuZ2xvYignc3JjL29wcy8qX2NwdS5jYycpCmZvciBmIGluIGZpbGVzOgogICAgdHh0ID0gb3BlbihmKS5yZWFkKCkKICAgIGlmICcjaWZuZGVmIENUMl9BUk02NF9CVUlMRCcgbm90IGluIHR4dDoKICAgICAgICBvcGVuKGYsJ3cnKS53cml0ZShndWFyZCArIHR4dCkKcHJpbnQoJ3BhdGNoZXMgZG9uZScpCg==').decode())"
+        # [span_11](start_span)修复线程亲和性函数在 Android 上的兼容性[span_11](end_span)
+        [span_12](start_span)python3 -c "import base64,subprocess; subprocess.run(base64.b64decode('c2VkIC1pICdzL2NvbnN0IGludCBzdGF0dXMgPSBwdGhyZWFkX3NldGFmZmluaXR5X25wKHRocmVhZC5uYXRpdmVfaGFuZGxlKCksIHNpemVvZiAoY3B1X3NldF90KSwgXCZjcHVzZXQpOy8jaWZuZGVmIF9fQU5EUk9JRF9fXG4gICAgICBjb25zdCBpbnQgc3RhdHVzID0gcHRocmVhZF9zZXRhZmZpbml0eV9ucCh0aHJlYWQubmF0aXZlX2hhbmRsZSgpLCBzaXplb2YgKGNwdV9zZXRfdCksIFwmY3B1c2V0KTtcbiAgICAgICNlbHNlXG4gICAgICBjb25zdCBpbnQgc3RhdHVzID0gMDtcbiAgICAgICNlbmRpZi8nIHNyYy90aHJlYWRfcG9vbC5jYw==').decode(), shell=True)"[span_12](end_span)
+        # [span_13](start_span)修改 CMakeLists.txt 以支持 ARM64/NEON 编译[span_13](end_span)
+        [span_14](start_span)python3 -c "import base64; exec(base64.b64decode('CmltcG9ydCByZSwgZ2xvYgoKYyA9IG9wZW4oJ0NNYWtlTGlzdHMudHh0JykucmVhZCgpCgojIOenu+mZpOaJgOacieaXp+ihpeS4geaui+eVmQpjID0gJ1xuJy5qb2luKGwgZm9yIGwgaW4gYy5zcGxpdGxpbmVzKCkgCiAgICBpZiAnYWRkX2NvbXBpbGVfZGVmaW5pdGlvbnMoQ1QyX0FSTTY0X0JVSUxEKScgbm90IGluIGwpCmMgPSByZS5zdWIocidpZlwoQU5EUk9JRFwpXG4gIHNldFwoQ1QyX0FSTTY0X0JVSUxEIE9OXClcbmVuZGlmXChcKVxuJywgJycsIGMpCmMgPSByZS5zdWIocidcbmlmXChBTkRST0lEXClcbiAgY3QyX2NvbXBpbGVfa2VybmVsc19mb3JfaXNhW15cbl0qXG5lbmRpZlwoXCknLCAnJywgYykKCiMg5p2h5Lu25pS55Li6IENUMl9BUk02NF9CVUlMRCBPUiBXSVRIX05FT04KYyA9IHJlLnN1YihyJ2lmXChDVDJfQVJNNjRfQlVJTERcKScsICdpZihDVDJfQVJNNjRfQlVJTEQgT1IgV0lUSF9ORU9OKScsIGMpCgojIG5lb24gZmxhZyDliqAgQ1QyX0FSTTY0X0JVSUxECmMgPSBjLnJlcGxhY2UoCiAgICAnY3QyX2NvbXBpbGVfa2VybmVsc19mb3JfaXNhKG5lb24gIi1EVVNFX05FT04iKScsCiAgICAnY3QyX2NvbXBpbGVfa2VybmVsc19mb3JfaXNhKG5lb24gIi1EVVNFX05FT04gLURDVDJfQVJNNjRfQlVJTEQiKScKKQpvcGVuKCdDTWFrZUxpc3RzLnR4dCcsICd3Jykud3JpdGUoYykKCiMg5omA5pyJ55So5YiwIElTQSDnmoTmupDmlofku7bliqDlpLTpg6ggZ3VhcmQKZ3VhcmQgPSAnI2lmZGVmIF9fQU5EUk9JRF9fXG4jaWZuZGVmIENUMl9BUk02NF9CVUlMRFxuI2RlZmluZSBDVDJfQVJNNjRfQlVJTERcbiNlbmRpZlxuI2VuZGlmXG4nCmZpbGVzID0gWydzcmMvY3B1L3ByaW1pdGl2ZXMuY2MnXSArIGdsb2IuZ2xvYignc3JjL29wcy8qX2NwdS5jYycpCmZvciBmIGluIGZpbGVzOgogICAgdHh0ID0gb3BlbihmKS5yZWFkKCkKICAgIGlmICcjaWZuZGVmIENUMl9BUk02NF9CVUlMRCcgbm90IGluIHR4dDoKICAgICAgICBvcGVuKGYsJ3cnKS53cml0ZShndWFyZCArIHR4dCkKcHJpbnQoJ3BhdGNoZXMgZG9uZScpCg==').decode())"[span_14](end_span)
 
     - name: Build arm64-v8a
       env:
-        ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+        [span_15](start_span)ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}[span_15](end_span)
       run: |
         cd CTranslate2
-        mkdir build-arm64 && cd build-arm64
+        mkdir -p build-arm64 && cd build-arm64
+        # [span_16](start_span)修正：确保 cmake 命令是一个连续的整体，移除中间的 source 标记[span_16](end_span)
         cmake .. \
+          -GNinja \
           -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
           -DANDROID_ABI=arm64-v8a \
           -DANDROID_PLATFORM=android-26 \
@@ -59,19 +63,15 @@ jobs:
           -DOPENMP_RUNTIME=NONE \
           -DWITH_NEON=ON \
           -DCMAKE_CXX_STANDARD=17 \
-          -DCMAKE_CXX_FLAGS="-Wno-deprecated -Wno-error -Wno-unused" \
-          -GNinja
-        ninja -j4
+          -DCMAKE_CXX_FLAGS="-Wno-deprecated -Wno-error -Wno-unused -fPIC"
+        
+        [span_17](start_span)ninja -j4[span_17](end_span)
 
     - name: Package
       run: |
-        mkdir -p output/arm64-v8a output/include
-        cp CTranslate2/build-arm64/libctranslate2.so output/arm64-v8a/
-        cp -r CTranslate2/include/ctranslate2 output/include/
-        echo "SUCCESS"
-        ls -lh output/arm64-v8a/
-        echo "Headers:"
-        ls output/include/ctranslate2/ | head -10
+        [span_18](start_span)mkdir -p output/arm64-v8a[span_18](end_span)
+        [span_19](start_span)cp CTranslate2/build-arm64/libctranslate2.so output/arm64-v8a/[span_19](end_span)
+        [span_20](start_span)echo "SUCCESS" && ls -lh output/arm64-v8a/[span_20](end_span)
 
     - name: Upload
       uses: actions/upload-artifact@v4
