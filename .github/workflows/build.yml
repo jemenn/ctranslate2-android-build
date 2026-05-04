@@ -25,18 +25,18 @@ jobs:
         sudo apt-get update -q
         sudo apt-get install -y cmake ninja-build python3
 
-    - name: Clone CTranslate2 v2.24.0
+    - name: Clone CTranslate2 v3.24.0
       run: |
         git clone https://github.com/OpenNMT/CTranslate2.git
         cd CTranslate2
-        git checkout v2.24.0
+        git checkout v3.24.0
         git submodule update --init --recursive
 
     - name: Patch for Android
       run: |
         cd CTranslate2
         python3 -c "import base64,subprocess; subprocess.run(base64.b64decode('c2VkIC1pICdzL2NvbnN0IGludCBzdGF0dXMgPSBwdGhyZWFkX3NldGFmZmluaXR5X25wKHRocmVhZC5uYXRpdmVfaGFuZGxlKCksIHNpemVvZiAoY3B1X3NldF90KSwgXCZjcHVzZXQpOy8jaWZuZGVmIF9fQU5EUk9JRF9fXG4gICAgICBjb25zdCBpbnQgc3RhdHVzID0gcHRocmVhZF9zZXRhZmZpbml0eV9ucCh0aHJlYWQubmF0aXZlX2hhbmRsZSgpLCBzaXplb2YgKGNwdV9zZXRfdCksIFwmY3B1c2V0KTtcbiAgICAgICNlbHNlXG4gICAgICBjb25zdCBpbnQgc3RhdHVzID0gMDtcbiAgICAgICNlbmRpZi8nIHNyYy90aHJlYWRfcG9vbC5jYw==').decode(), shell=True)"
-        python3 -c "import base64; exec(base64.b64decode('CmltcG9ydCByZSwgZ2xvYgoKYyA9IG9wZW4oJ0NNYWtlTGlzdHMudHh0JykucmVhZCgpCgojIOenu+mZpOaJgOacieaXp+ihpeS4geaui+eVmQpjID0gJ1xuJy5qb2luKGwgZm9yIGwgaW4gYy5zcGxpdGxpbmVzKCkgCiAgICBpZiAnYWRkX2NvbXBpbGVfZGVmaW5pdGlvbnMoQ1QyX0FSTTY0X0JVSUxEKScgbm90IGluIGwpCmMgPSByZS5zdWIocidpZlwoQU5EUk9JRFwpXG4gIHNldFwoQ1QyX0FSTTY0X0JVSUxEIE9OXClcbmVuZGlmXChcKVxuJywgJycsIGMpCmMgPSByZS5zdWIocidcbmlmXChBTkRST0lEXClcbiAgY3QyX2NvbXBpbGVfa2VybmVsc19mb3JfaXNhW15cbl0qXG5lbmRpZlwoXCknLCAnJywgYykKCiMg5p2h5Lu25pS55Li6IENUMl9BUk02NF9CVUlMRCBPUiBXSVRIX05FT04KYyA9IHJlLnN1YihyJ2lmXChDVDJfQVJNNjRfQlVJTERcKScsICdpZihDVDJfQVJNNjRfQlVJTEQgT1IgV0lUSF9ORU9OKScsIGMpCgojIG5lb24gZmxhZyDliqAgQ1QyX0FSTTY0X0JVSUxECmMgPSBjLnJlcGxhY2UoCiAgICAnY3QyX2NvbXBpbGVfa2VybmVsc19mb3JfaXNhKG5lb24gIi1EVVNFX05FT04iKScsCiAgICAnY3QyX2NvbXBpbGVfa2VybmVsc19mb3JfaXNhKG5lb24gIi1EVVNFX05FT04gLURDVDJfQVJNNjRfQlVJTEQiKScKKQpvcGVuKCdDTWFrZUxpc3RzLnR4dCcsICd3Jykud3JpdGUoYykKCiMg5omA5pyJ55So5YiwIElTQSDnmoTmupDmlofku7bliqDlpLTpg6ggZ3VhcmQKZ3VhcmQgPSAnI2lmZGVmIF9fQU5EUk9JRF9fXG4jaWZuZGVmIENUMl9BUk02NF9CVUlMRFxuI2RlZmluZSBDVDJfQVJNNjRfQlVJTERcbiNlbmRpZlxuI2VuZGlmXG4nCmZpbGVzID0gWydzcmMvY3B1L3ByaW1pdGl2ZXMuY2MnXSArIGdsb2IuZ2xvYignc3JjL29wcy8qX2NwdS5jYycpCmZvciBmIGluIGZpbGVzOgogICAgdHh0ID0gb3BlbihmKS5yZWFkKCkKICAgIGlmICcjaWZuZGVmIENUMl9BUk02NF9CVUlMRCcgbm90IGluIHR4dDoKICAgICAgICBvcGVuKGYsJ3cnKS53cml0ZShndWFyZCArIHR4dCkKcHJpbnQoJ3BhdGNoZXMgZG9uZScpCg==').decode())"
+        python3 -c "import base64; exec(base64.b64decode('CmltcG9ydCByZSwgZ2xvYiwgb3MKCmMgPSBvcGVuKCdDTWFrZUxpc3RzLnR4dCcpLnJlYWQoKQoKIyDnp7vpmaTml6fooaXkuIHmrovnlZkKYyA9ICdcbicuam9pbihsIGZvciBsIGluIGMuc3BsaXRsaW5lcygpCiAgICBpZiAnYWRkX2NvbXBpbGVfZGVmaW5pdGlvbnMoQ1QyX0FSTTY0X0JVSUxEKScgbm90IGluIGwpCmMgPSByZS5zdWIocidpZlwoQU5EUk9JRFwpXG4gIHNldFwoQ1QyX0FSTTY0X0JVSUxEIE9OXClcbmVuZGlmXChcKVxuJywgJycsIGMpCmMgPSByZS5zdWIocidcbmlmXChBTkRST0lEXClcbiAgY3QyX2NvbXBpbGVfa2VybmVsc19mb3JfaXNhW15cbl0qXG5lbmRpZlwoXCknLCAnJywgYykKCiMg5p2h5Lu25pS55Li6IENUMl9BUk02NF9CVUlMRCBPUiBXSVRIX05FT04KYyA9IHJlLnN1YihyJ2lmXHMqXChccypDVDJfQVJNNjRfQlVJTERccypcKScsICdpZihDVDJfQVJNNjRfQlVJTEQgT1IgV0lUSF9ORU9OKScsIGMpCgojIG5lb24gZmxhZyDliqAgQ1QyX0FSTTY0X0JVSUxECmMgPSBjLnJlcGxhY2UoCiAgICAnY3QyX2NvbXBpbGVfa2VybmVsc19mb3JfaXNhKG5lb24gIi1EVVNFX05FT04iKScsCiAgICAnY3QyX2NvbXBpbGVfa2VybmVsc19mb3JfaXNhKG5lb24gIi1EVVNFX05FT04gLURDVDJfQVJNNjRfQlVJTEQiKScKKQpvcGVuKCdDTWFrZUxpc3RzLnR4dCcsICd3Jykud3JpdGUoYykKCiMg5omA5pyJIG9wcyDmupDmlofku7bliqAgQW5kcm9pZCBndWFyZApndWFyZCA9ICcjaWZkZWYgX19BTkRST0lEX19cbiNpZm5kZWYgQ1QyX0FSTTY0X0JVSUxEXG4jZGVmaW5lIENUMl9BUk02NF9CVUlMRFxuI2VuZGlmXG4jZW5kaWZcbicKZmlsZXMgPSBbJ3NyYy9jcHUvcHJpbWl0aXZlcy5jYyddICsgZ2xvYi5nbG9iKCdzcmMvb3BzLypfY3B1LmNjJykKZm9yIGYgaW4gZmlsZXM6CiAgICBpZiBvcy5wYXRoLmV4aXN0cyhmKToKICAgICAgICB0eHQgPSBvcGVuKGYpLnJlYWQoKQogICAgICAgIGlmICcjaWZuZGVmIENUMl9BUk02NF9CVUlMRCcgbm90IGluIHR4dDoKICAgICAgICAgICAgb3BlbihmLCd3Jykud3JpdGUoZ3VhcmQgKyB0eHQpCgpwcmludCgncGF0Y2hlcyBkb25lJykKZm9yIGksbCBpbiBlbnVtZXJhdGUob3BlbignQ01ha2VMaXN0cy50eHQnKS5yZWFkKCkuc3BsaXRsaW5lcygpKToKICAgIGlmICdDVDJfQVJNNjRfQlVJTEQgT1InIGluIGwgb3IgJ2N0Ml9jb21waWxlX2tlcm5lbHNfZm9yX2lzYShuZW9uJyBpbiBsOgogICAgICAgIHByaW50KGYnICB7aSsxfToge2x9JykK').decode())"
 
     - name: Build arm64-v8a
       env:
@@ -65,14 +65,12 @@ jobs:
 
     - name: Package
       run: |
-        mkdir -p output/arm64-v8a output/include/ctranslate2 output/include/half_float
+        mkdir -p output/arm64-v8a output/include
         cp CTranslate2/build-arm64/libctranslate2.so output/arm64-v8a/
         cp -r CTranslate2/include/ctranslate2 output/include/
-        cp -r CTranslate2/third_party/half_float/include/half.hpp output/include/half_float/ 2>/dev/null ||           find CTranslate2 -name "half.hpp" -exec cp {} output/include/half_float/ \;
-        find CTranslate2/third_party -name "*.h" -o -name "*.hpp" | head -20
-        echo "SUCCESS"
-        ls -lh output/arm64-v8a/
-        ls output/include/
+        find CTranslate2/third_party -name "half.hpp" -exec cp {} output/include/ \; 2>/dev/null || true
+        find CTranslate2/third_party -name "*.h" -path "*/half*" -exec cp {} output/include/ \; 2>/dev/null || true
+        echo "SUCCESS" && ls -lh output/arm64-v8a/ && ls output/include/
 
     - name: Upload
       uses: actions/upload-artifact@v4
