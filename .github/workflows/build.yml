@@ -36,7 +36,7 @@ jobs:
       run: |
         cd CTranslate2
         python3 -c "import base64,subprocess; subprocess.run(base64.b64decode('c2VkIC1pICdzL2NvbnN0IGludCBzdGF0dXMgPSBwdGhyZWFkX3NldGFmZmluaXR5X25wKHRocmVhZC5uYXRpdmVfaGFuZGxlKCksIHNpemVvZiAoY3B1X3NldF90KSwgXCZjcHVzZXQpOy8jaWZuZGVmIF9fQU5EUk9JRF9fXG4gICAgICBjb25zdCBpbnQgc3RhdHVzID0gcHRocmVhZF9zZXRhZmZpbml0eV9ucCh0aHJlYWQubmF0aXZlX2hhbmRsZSgpLCBzaXplb2YgKGNwdV9zZXRfdCksIFwmY3B1c2V0KTtcbiAgICAgICNlbHNlXG4gICAgICBjb25zdCBpbnQgc3RhdHVzID0gMDtcbiAgICAgICNlbmRpZi8nIHNyYy90aHJlYWRfcG9vbC5jYw==').decode(), shell=True)"
-        python3 -c "import base64; exec(base64.b64decode('CmltcG9ydCByZSwgZ2xvYgoKYyA9IG9wZW4oJ0NNYWtlTGlzdHMudHh0JykucmVhZCgpCgojIOenu+mZpOS5i+WJjeWKoOeahOaJgOacieihpeS4geaui+eVmQpjID0gJ1xuJy5qb2luKGwgZm9yIGwgaW4gYy5zcGxpdGxpbmVzKCkgCiAgICBpZiAnYWRkX2NvbXBpbGVfZGVmaW5pdGlvbnMoQ1QyX0FSTTY0X0JVSUxEKScgbm90IGluIGwpCmMgPSByZS5zdWIocidpZlwoQU5EUk9JRFwpXG4gIHNldFwoQ1QyX0FSTTY0X0JVSUxEIE9OXClcbmVuZGlmXChcKVxuJywgJycsIGMpCmMgPSByZS5zdWIocidcbmlmXChBTkRST0lEXClcbiAgY3QyX2NvbXBpbGVfa2VybmVsc19mb3JfaXNhW15cbl0qXG5lbmRpZlwoXCknLCAnJywgYykKCiMg5qC45b+D5L+u5aSN77ya5oqKIGN0Ml9jb21waWxlX2tlcm5lbHNfZm9yX2lzYShuZW9uIC4uLikg55qE6Kem5Y+R5p2h5Lu2CiMg5LuOIGlmKENUMl9BUk02NF9CVUlMRCkg5pS55Li6IGlmKENUMl9BUk02NF9CVUlMRCBPUiBXSVRIX05FT04pCiMg6L+Z5qC3IC1EV0lUSF9ORU9OPU9OIOaXtuS4pOS4qiBBQkkg6YO95Lya6LCD55SoCmMgPSByZS5zdWIoCiAgICByJ2lmXChDVDJfQVJNNjRfQlVJTERcKScsCiAgICAnaWYoQ1QyX0FSTTY0X0JVSUxEIE9SIFdJVEhfTkVPTiknLAogICAgYwopCgojIG5lb24gZmxhZyDliqAgQ1QyX0FSTTY0X0JVSUxEIOmihOWkhOeQhuWujwpjID0gYy5yZXBsYWNlKAogICAgJ2N0Ml9jb21waWxlX2tlcm5lbHNfZm9yX2lzYShuZW9uICItRFVTRV9ORU9OIiknLAogICAgJ2N0Ml9jb21waWxlX2tlcm5lbHNfZm9yX2lzYShuZW9uICItRFVTRV9ORU9OIC1EQ1QyX0FSTTY0X0JVSUxEIiknCikKCm9wZW4oJ0NNYWtlTGlzdHMudHh0JywgJ3cnKS53cml0ZShjKQpwcmludCgnQ01ha2VMaXN0cy50eHQgcGF0Y2hlZCcpCgojIOmqjOivgQpmb3IgaSxsIGluIGVudW1lcmF0ZShjLnNwbGl0bGluZXMoKSk6CiAgICBpZiAnQ1QyX0FSTTY0X0JVSUxEIE9SJyBpbiBsIG9yICdjdDJfY29tcGlsZV9rZXJuZWxzX2Zvcl9pc2EobmVvbicgaW4gbDoKICAgICAgICBwcmludChmJyAge2krMX06IHtsfScpCgojIHByaW1pdGl2ZXMuY2MgKyBvcHMvKl9jcHUuY2Mg5Yqg5aS06YOoIGd1YXJkCmd1YXJkID0gJyNpZmRlZiBfX0FORFJPSURfX1xuI2lmbmRlZiBDVDJfQVJNNjRfQlVJTERcbiNkZWZpbmUgQ1QyX0FSTTY0X0JVSUxEXG4jZW5kaWZcbiNlbmRpZlxuJwpmaWxlcyA9IFsnc3JjL2NwdS9wcmltaXRpdmVzLmNjJ10gKyBnbG9iLmdsb2IoJ3NyYy9vcHMvKl9jcHUuY2MnKQpwYXRjaGVkID0gMApmb3IgZiBpbiBmaWxlczoKICAgIHR4dCA9IG9wZW4oZikucmVhZCgpCiAgICBpZiAnI2lmbmRlZiBDVDJfQVJNNjRfQlVJTEQnIG5vdCBpbiB0eHQ6CiAgICAgICAgb3BlbihmLCd3Jykud3JpdGUoZ3VhcmQgKyB0eHQpCiAgICAgICAgcGF0Y2hlZCArPSAxCnByaW50KGYncGF0Y2hlZCB7cGF0Y2hlZH0gc291cmNlIGZpbGVzJykK').decode())"
+        python3 -c "import base64; exec(base64.b64decode('CmltcG9ydCByZSwgZ2xvYgoKYyA9IG9wZW4oJ0NNYWtlTGlzdHMudHh0JykucmVhZCgpCgojIOenu+mZpOaJgOacieaXp+ihpeS4geaui+eVmQpjID0gJ1xuJy5qb2luKGwgZm9yIGwgaW4gYy5zcGxpdGxpbmVzKCkgCiAgICBpZiAnYWRkX2NvbXBpbGVfZGVmaW5pdGlvbnMoQ1QyX0FSTTY0X0JVSUxEKScgbm90IGluIGwpCmMgPSByZS5zdWIocidpZlwoQU5EUk9JRFwpXG4gIHNldFwoQ1QyX0FSTTY0X0JVSUxEIE9OXClcbmVuZGlmXChcKVxuJywgJycsIGMpCmMgPSByZS5zdWIocidcbmlmXChBTkRST0lEXClcbiAgY3QyX2NvbXBpbGVfa2VybmVsc19mb3JfaXNhW15cbl0qXG5lbmRpZlwoXCknLCAnJywgYykKCiMg5p2h5Lu25pS55Li6IENUMl9BUk02NF9CVUlMRCBPUiBXSVRIX05FT04KYyA9IHJlLnN1YihyJ2lmXChDVDJfQVJNNjRfQlVJTERcKScsICdpZihDVDJfQVJNNjRfQlVJTEQgT1IgV0lUSF9ORU9OKScsIGMpCgojIG5lb24gZmxhZyDliqAgQ1QyX0FSTTY0X0JVSUxECmMgPSBjLnJlcGxhY2UoCiAgICAnY3QyX2NvbXBpbGVfa2VybmVsc19mb3JfaXNhKG5lb24gIi1EVVNFX05FT04iKScsCiAgICAnY3QyX2NvbXBpbGVfa2VybmVsc19mb3JfaXNhKG5lb24gIi1EVVNFX05FT04gLURDVDJfQVJNNjRfQlVJTEQiKScKKQpvcGVuKCdDTWFrZUxpc3RzLnR4dCcsICd3Jykud3JpdGUoYykKCiMg5omA5pyJ55So5YiwIElTQSDnmoTmupDmlofku7bliqDlpLTpg6ggZ3VhcmQKZ3VhcmQgPSAnI2lmZGVmIF9fQU5EUk9JRF9fXG4jaWZuZGVmIENUMl9BUk02NF9CVUlMRFxuI2RlZmluZSBDVDJfQVJNNjRfQlVJTERcbiNlbmRpZlxuI2VuZGlmXG4nCmZpbGVzID0gWydzcmMvY3B1L3ByaW1pdGl2ZXMuY2MnXSArIGdsb2IuZ2xvYignc3JjL29wcy8qX2NwdS5jYycpCmZvciBmIGluIGZpbGVzOgogICAgdHh0ID0gb3BlbihmKS5yZWFkKCkKICAgIGlmICcjaWZuZGVmIENUMl9BUk02NF9CVUlMRCcgbm90IGluIHR4dDoKICAgICAgICBvcGVuKGYsJ3cnKS53cml0ZShndWFyZCArIHR4dCkKcHJpbnQoJ3BhdGNoZXMgZG9uZScpCg==').decode())"
 
     - name: Build arm64-v8a
       env:
@@ -63,38 +63,11 @@ jobs:
           -GNinja
         ninja -j4
 
-    - name: Build armeabi-v7a
-      env:
-        ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
-      run: |
-        cd CTranslate2
-        mkdir build-v7 && cd build-v7
-        cmake .. \
-          -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
-          -DANDROID_ABI=armeabi-v7a \
-          -DANDROID_PLATFORM=android-26 \
-          -DCMAKE_BUILD_TYPE=Release \
-          -DBUILD_SHARED_LIBS=ON \
-          -DWITH_TESTS=OFF \
-          -DWITH_BENCHMARKS=OFF \
-          -DWITH_MKL=OFF \
-          -DWITH_DNNL=OFF \
-          -DWITH_ACCELERATE=OFF \
-          -DWITH_OPENBLAS=OFF \
-          -DOPENMP_RUNTIME=NONE \
-          -DWITH_NEON=ON \
-          -DANDROID_ARM_NEON=TRUE \
-          -DCMAKE_CXX_STANDARD=17 \
-          -DCMAKE_CXX_FLAGS="-Wno-deprecated -Wno-error -Wno-unused" \
-          -GNinja
-        ninja -j4
-
     - name: Package
       run: |
-        mkdir -p output/arm64-v8a output/armeabi-v7a
+        mkdir -p output/arm64-v8a
         cp CTranslate2/build-arm64/libctranslate2.so output/arm64-v8a/
-        cp CTranslate2/build-v7/libctranslate2.so   output/armeabi-v7a/
-        echo "SUCCESS" && ls -lh output/arm64-v8a/ output/armeabi-v7a/
+        echo "SUCCESS" && ls -lh output/arm64-v8a/
 
     - name: Upload
       uses: actions/upload-artifact@v4
